@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_portal_order_request_salesman,portal.order.request.salesman,model_partner_portal_order_request,sales_team.group_sale_salesman,1,1,1,1
+access_portal_order_request_portal,portal.order.request.portal,model_partner_portal_order_request,base.group_portal,1,0,0,0
+access_portal_order_request_line_salesman,portal.order.request.line.salesman,model_partner_portal_order_request_line,sales_team.group_sale_salesman,1,1,1,1
+access_portal_order_request_line_portal,portal.order.request.line.portal,model_partner_portal_order_request_line,base.group_portal,1,0,0,0
+access_portal_payment_proof_salesman,portal.payment.proof.salesman,model_partner_portal_payment_proof,sales_team.group_sale_salesman,1,1,1,0
+access_portal_payment_proof_accountant,portal.payment.proof.accountant,model_partner_portal_payment_proof,account.group_account_invoice,1,1,0,0
+access_portal_payment_proof_portal,portal.payment.proof.portal,model_partner_portal_payment_proof,base.group_portal,1,0,0,0

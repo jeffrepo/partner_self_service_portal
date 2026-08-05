@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="portal_order_request_rule_portal" model="ir.rule">
+        <field name="name">Solicitudes del portal: compañía del usuario</field>
+        <field name="model_id" ref="model_partner_portal_order_request"/>
+        <field name="domain_force">[('partner_id', '=', user.partner_id.commercial_partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="portal_order_request_line_rule_portal" model="ir.rule">
+        <field name="name">Líneas del portal: compañía del usuario</field>
+        <field name="model_id" ref="model_partner_portal_order_request_line"/>
+        <field name="domain_force">[('partner_id', '=', user.partner_id.commercial_partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="portal_payment_proof_rule_portal" model="ir.rule">
+        <field name="name">Comprobantes del portal: compañía del usuario</field>
+        <field name="model_id" ref="model_partner_portal_payment_proof"/>
+        <field name="domain_force">[('partner_id', '=', user.partner_id.commercial_partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="portal_order_request_rule_internal_company" model="ir.rule">
+        <field name="name">Solicitudes del portal: compañías permitidas</field>
+        <field name="model_id" ref="model_partner_portal_order_request"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <record id="portal_order_request_line_rule_internal_company" model="ir.rule">
+        <field name="name">Líneas del portal: compañías permitidas</field>
+        <field name="model_id" ref="model_partner_portal_order_request_line"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <record id="portal_payment_proof_rule_internal_company" model="ir.rule">
+        <field name="name">Comprobantes del portal: compañías permitidas</field>
+        <field name="model_id" ref="model_partner_portal_payment_proof"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+</odoo>

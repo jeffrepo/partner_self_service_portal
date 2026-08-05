@@ -1,0 +1,33 @@
+{
+    "name": "Partner Self-Service Portal",
+    "summary": "Portal de clientes con inventario, solicitudes y comprobantes de pago",
+    "version": "18.0.1.0.0",
+    "category": "Sales/Sales",
+    "author": "Jeffrepo",
+    "license": "LGPL-3",
+    "depends": [
+        "account",
+        "portal",
+        "sale_management",
+        "sale_stock",
+        "website",
+    ],
+    "data": [
+        "security/ir.model.access.csv",
+        "security/portal_security.xml",
+        "data/ir_sequence_data.xml",
+        "views/res_partner_views.xml",
+        "views/res_config_settings_views.xml",
+        "views/portal_order_request_views.xml",
+        "views/portal_payment_proof_views.xml",
+        "views/sale_order_views.xml",
+        "views/portal_templates.xml",
+    ],
+    "assets": {
+        "web.assets_frontend": [
+            "partner_self_service_portal/static/src/scss/portal.scss",
+        ],
+    },
+    "application": True,
+    "installable": True,
+}

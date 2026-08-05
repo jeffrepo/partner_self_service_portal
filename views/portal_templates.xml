@@ -1,0 +1,470 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="portal_breadcrumbs_partner_self_service"
+              name="Navegación del portal de autoservicio"
+              inherit_id="portal.portal_breadcrumbs"
+              priority="50">
+        <xpath expr="//ol[hasclass('o_portal_submenu')]" position="inside">
+            <li t-if="page_name == 'portal_inventory'" class="breadcrumb-item active">
+                Inventario
+            </li>
+            <li t-if="page_name == 'portal_payments'" class="breadcrumb-item active">
+                Pagos
+            </li>
+            <li t-if="page_name in ('portal_purchase_requests', 'portal_purchase_request', 'portal_purchase_request_form')"
+                t-attf-class="breadcrumb-item #{'active' if page_name == 'portal_purchase_requests' else ''}">
+                <a t-if="page_name != 'portal_purchase_requests'" href="/my/purchase-requests">Solicitudes</a>
+                <t t-else="">Solicitudes</t>
+            </li>
+            <li t-if="page_name == 'portal_purchase_request'" class="breadcrumb-item active">
+                <t t-out="purchase_request.name"/>
+            </li>
+            <li t-if="page_name == 'portal_purchase_request_form'" class="breadcrumb-item active">
+                <t t-if="purchase_request">Editar</t>
+                <t t-else="">Nueva</t>
+            </li>
+        </xpath>
+    </template>
+
+    <template id="portal_my_home_partner_self_service"
+              name="Accesos del portal de autoservicio"
+              inherit_id="portal.portal_my_home"
+              customize_show="True"
+              priority="50">
+        <xpath expr="//div[hasclass('o_portal_docs')]" position="before">
+            <t t-set="portal_client_category_enable" t-value="True"/>
+        </xpath>
+        <div id="portal_client_category" position="inside">
+            <t t-call="portal.portal_docs_entry">
+                <t t-set="icon" t-value="'/stock/static/description/icon.png'"/>
+                <t t-set="title">Inventario disponible</t>
+                <t t-set="url" t-value="'/my/inventory'"/>
+                <t t-set="text">Consulta existencias en tiempo real de tu almacén</t>
+                <t t-set="placeholder_count" t-value="'portal_inventory_count'"/>
+                <t t-set="config_card" t-value="True"/>
+            </t>
+            <t t-call="portal.portal_docs_entry">
+                <t t-set="icon" t-value="'/sale/static/src/img/bag.svg'"/>
+                <t t-set="title">Solicitudes de compra</t>
+                <t t-set="url" t-value="'/my/purchase-requests'"/>
+                <t t-set="text">Crea, revisa y confirma solicitudes</t>
+                <t t-set="placeholder_count" t-value="'purchase_request_count'"/>
+                <t t-set="config_card" t-value="True"/>
+            </t>
+            <t t-call="portal.portal_docs_entry">
+                <t t-set="icon" t-value="'/account/static/src/img/Bill.svg'"/>
+                <t t-set="title">Pagos registrados</t>
+                <t t-set="url" t-value="'/my/payments'"/>
+                <t t-set="text">Consulta los pagos registrados para tu compañía</t>
+                <t t-set="placeholder_count" t-value="'portal_payment_count'"/>
+                <t t-set="config_card" t-value="True"/>
+            </t>
+        </div>
+    </template>
+
+    <template id="portal_configuration_required" name="Configuración requerida">
+        <t t-call="portal.portal_layout">
+            <div class="alert alert-warning mt-3" role="alert">
+                <h4 class="alert-heading">Configuración pendiente</h4>
+                <p t-if="not company_partner">
+                    Tu usuario debe estar asociado a un contacto que pertenezca a una compañía.
+                    Solicita al administrador de Odoo que revise tu contacto padre.
+                </p>
+                <p t-elif="not warehouse">
+                    Tu compañía todavía no tiene un almacén activo asignado para el portal.
+                    Solicita al administrador que lo configure en la ficha de la compañía cliente.
+                </p>
+                <a class="btn btn-outline-primary" href="/my/home">Volver al portal</a>
+            </div>
+        </t>
+    </template>
+
+    <template id="portal_my_inventory" name="Inventario de mi compañía">
+        <t t-call="portal.portal_layout">
+            <t t-set="breadcrumbs_searchbar" t-value="True"/>
+            <t t-call="portal.portal_searchbar">
+                <t t-set="title">Inventario disponible</t>
+            </t>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+                <div>
+                    <h5 class="mb-1" t-out="warehouse.display_name"/>
+                    <span class="text-muted">Existencia libre: inventario físico menos reservas vigentes.</span>
+                </div>
+                <form method="get" action="/my/inventory" class="d-flex" role="search">
+                    <input type="search" name="search" t-att-value="search"
+                           class="form-control" placeholder="Buscar producto, código o código de barras..."/>
+                    <button type="submit" class="btn btn-outline-primary ms-2">Buscar</button>
+                </form>
+            </div>
+
+            <div t-if="not inventory_items" class="alert alert-info" role="status">
+                No hay productos disponibles para los criterios indicados.
+            </div>
+            <t t-if="inventory_items" t-call="portal.portal_table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th class="text-end">Disponible</th>
+                        <th>Unidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="inventory_items" t-as="item">
+                        <td><span t-out="item['product'].default_code or '-'"/></td>
+                        <td><span t-out="item['product'].display_name"/></td>
+                        <td class="text-end fw-semibold"><span t-out="item['available']"/></td>
+                        <td><span t-out="item['product'].uom_id.name"/></td>
+                    </tr>
+                </tbody>
+            </t>
+            <div class="mt-3 text-end">
+                <a class="btn btn-primary" href="/my/purchase-requests/new">
+                    Crear solicitud
+                </a>
+            </div>
+        </t>
+    </template>
+
+    <template id="portal_my_payments" name="Pagos de mi compañía">
+        <t t-call="portal.portal_layout">
+            <t t-set="breadcrumbs_searchbar" t-value="True"/>
+            <t t-call="portal.portal_searchbar">
+                <t t-set="title">Pagos registrados</t>
+            </t>
+            <div t-if="not payments" class="alert alert-info" role="status">
+                No hay pagos procesados o pagados registrados para tu compañía.
+            </div>
+            <t t-if="payments" t-call="portal.portal_table">
+                <thead>
+                    <tr>
+                        <th>Referencia</th>
+                        <th>Fecha</th>
+                        <th>Concepto</th>
+                        <th class="text-end">Monto</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="payments" t-as="payment">
+                        <td><span t-out="payment.name or '-'"/></td>
+                        <td><span t-field="payment.date"/></td>
+                        <td><span t-out="payment.payment_reference or payment.memo or '-'"/></td>
+                        <td class="text-end">
+                            <span t-field="payment.amount"
+                                  t-options="{'widget': 'monetary', 'display_currency': payment.currency_id}"/>
+                        </td>
+                        <td>
+                            <span t-if="payment.state == 'paid'" class="badge rounded-pill text-bg-success">Pagado</span>
+                            <span t-else="" class="badge rounded-pill text-bg-info">En proceso</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </t>
+        </t>
+    </template>
+
+    <template id="portal_my_purchase_requests" name="Mis solicitudes de compra">
+        <t t-call="portal.portal_layout">
+            <t t-set="breadcrumbs_searchbar" t-value="True"/>
+            <t t-call="portal.portal_searchbar">
+                <t t-set="title">Solicitudes de compra</t>
+            </t>
+            <div class="d-flex justify-content-end mb-3">
+                <a t-if="warehouse" class="btn btn-primary" href="/my/purchase-requests/new">
+                    Nueva solicitud
+                </a>
+            </div>
+            <div t-if="not purchase_requests" class="alert alert-info" role="status">
+                Todavía no hay solicitudes para tu compañía.
+            </div>
+            <t t-if="purchase_requests" t-call="portal.portal_table">
+                <thead>
+                    <tr>
+                        <th>Correlativo</th>
+                        <th>Fecha</th>
+                        <th>Solicitado por</th>
+                        <th class="text-end">Cantidad</th>
+                        <th>Orden de venta</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="purchase_requests" t-as="purchase_request">
+                        <td>
+                            <a t-att-href="purchase_request.get_portal_url()">
+                                <span t-out="purchase_request.name"/>
+                            </a>
+                        </td>
+                        <td><span t-field="purchase_request.create_date" t-options="{'widget': 'date'}"/></td>
+                        <td><span t-out="purchase_request.requested_by_id.display_name"/></td>
+                        <td class="text-end"><span t-out="purchase_request.total_requested_qty"/></td>
+                        <td>
+                            <a t-if="purchase_request.sale_order_id"
+                               t-att-href="purchase_request.sale_order_id.get_portal_url()">
+                                <span t-out="purchase_request.sale_order_id.name"/>
+                            </a>
+                            <span t-else="">-</span>
+                        </td>
+                        <td>
+                            <span t-if="purchase_request.state == 'confirmed'"
+                                  class="badge rounded-pill text-bg-success">Confirmada</span>
+                            <span t-else="" class="badge rounded-pill text-bg-info">Borrador</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </t>
+        </t>
+    </template>
+
+    <template id="portal_purchase_request_detail" name="Detalle de solicitud de compra">
+        <t t-call="portal.portal_layout">
+            <div t-if="created" class="alert alert-success" role="status">
+                La solicitud se guardó como borrador.
+            </div>
+            <div t-if="confirmed" class="alert alert-success" role="status">
+                La solicitud fue confirmada y se creó la orden de venta.
+            </div>
+            <div t-if="confirmation_error" class="alert alert-danger" role="alert">
+                <span t-out="confirmation_error"/>
+            </div>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                <div>
+                    <h2 class="mb-1" t-out="purchase_request.name"/>
+                    <span class="text-muted" t-out="purchase_request.warehouse_id.display_name"/>
+                </div>
+                <div class="d-flex gap-2 d-print-none">
+                    <a t-if="purchase_request.state == 'draft'"
+                       t-attf-href="/my/purchase-requests/{{ purchase_request.id }}/edit"
+                       class="btn btn-outline-primary">Editar</a>
+                    <form t-if="purchase_request.state == 'draft'"
+                          method="post"
+                          t-attf-action="/my/purchase-requests/{{ purchase_request.id }}/confirm">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <button type="submit" class="btn btn-primary"
+                                onclick="this.disabled=true; this.form.submit();">
+                            Confirmar
+                        </button>
+                    </form>
+                    <a t-if="purchase_request.sale_order_id"
+                       t-att-href="purchase_request.sale_order_id.get_portal_url()"
+                       class="btn btn-success">Ver orden de venta</a>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Compañía</dt>
+                        <dd class="col-sm-7" t-out="purchase_request.partner_id.display_name"/>
+                        <dt class="col-sm-5">Solicitado por</dt>
+                        <dd class="col-sm-7" t-out="purchase_request.requested_by_id.display_name"/>
+                        <dt class="col-sm-5">Referencia</dt>
+                        <dd class="col-sm-7" t-out="purchase_request.customer_reference or '-'"/>
+                    </dl>
+                </div>
+                <div class="col-md-6">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Estado</dt>
+                        <dd class="col-sm-7">
+                            <span t-if="purchase_request.state == 'confirmed'"
+                                  class="badge rounded-pill text-bg-success">Confirmada</span>
+                            <span t-else="" class="badge rounded-pill text-bg-info">Borrador</span>
+                        </dd>
+                        <dt class="col-sm-5">Creada</dt>
+                        <dd class="col-sm-7"><span t-field="purchase_request.create_date"/></dd>
+                        <dt t-if="purchase_request.confirmed_at" class="col-sm-5">Confirmada</dt>
+                        <dd t-if="purchase_request.confirmed_at" class="col-sm-7">
+                            <span t-field="purchase_request.confirmed_at"/>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <t t-call="portal.portal_table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th class="text-end">Cantidad</th>
+                        <th>Unidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="purchase_request.line_ids" t-as="line">
+                        <td><span t-out="line.product_id.default_code or '-'"/></td>
+                        <td><span t-out="line.product_id.display_name"/></td>
+                        <td class="text-end"><span t-out="line.product_uom_qty"/></td>
+                        <td><span t-out="line.product_uom_id.name"/></td>
+                    </tr>
+                </tbody>
+            </t>
+            <div t-if="purchase_request.note" class="card mt-4">
+                <div class="card-header">Notas</div>
+                <div class="card-body"><span t-out="purchase_request.note"/></div>
+            </div>
+        </t>
+    </template>
+
+    <template id="portal_purchase_request_form" name="Formulario de solicitud de compra">
+        <t t-call="portal.portal_layout">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="mb-1">
+                        <t t-if="purchase_request">Editar <span t-out="purchase_request.name"/></t>
+                        <t t-else="">Nueva solicitud</t>
+                    </h2>
+                    <span class="text-muted" t-out="warehouse.display_name"/>
+                </div>
+                <a class="btn btn-outline-secondary" href="/my/purchase-requests">Cancelar</a>
+            </div>
+
+            <div t-if="errors" class="alert alert-danger" role="alert">
+                <ul class="mb-0">
+                    <li t-foreach="errors" t-as="error"><span t-out="error"/></li>
+                </ul>
+            </div>
+            <div t-if="not inventory_items" class="alert alert-warning" role="alert">
+                No hay inventario libre disponible para crear una solicitud.
+            </div>
+
+            <form method="post"
+                  t-att-action="('/my/purchase-requests/%s/edit' % purchase_request.id) if purchase_request else '/my/purchase-requests/new'">
+                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label for="customer_reference" class="form-label">Referencia del cliente</label>
+                        <input id="customer_reference" name="customer_reference" type="text"
+                               maxlength="128" class="form-control" t-att-value="form_reference"/>
+                    </div>
+                    <div class="col-12">
+                        <label for="note" class="form-label">Notas</label>
+                        <textarea id="note" name="note" maxlength="2000" rows="3"
+                                  class="form-control" t-out="form_note"/>
+                    </div>
+                </div>
+
+                <div t-if="inventory_items" class="table-responsive">
+                    <table class="table table-hover align-middle o_portal_request_products">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th class="text-end">Disponible</th>
+                                <th style="min-width: 10rem;">Cantidad solicitada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="inventory_items" t-as="item">
+                                <t t-set="product" t-value="item['product']"/>
+                                <td><span t-out="product.default_code or '-'"/></td>
+                                <td>
+                                    <span t-out="product.display_name"/>
+                                    <small class="d-block text-muted" t-out="product.uom_id.name"/>
+                                </td>
+                                <td class="text-end fw-semibold"><span t-out="item['available']"/></td>
+                                <td>
+                                    <input type="number" min="0" step="any"
+                                           t-att-max="item['available']"
+                                           t-att-name="'qty_%s' % product.id"
+                                           t-att-value="current_quantities.get(product.id, '')"
+                                           class="form-control"/>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <a class="btn btn-outline-secondary" href="/my/purchase-requests">Cancelar</a>
+                    <button type="submit" class="btn btn-primary" t-att-disabled="not inventory_items">
+                        Guardar borrador
+                    </button>
+                </div>
+            </form>
+        </t>
+    </template>
+
+    <template id="sale_order_portal_payment_proof"
+              name="Comprobante de pago en orden de venta"
+              inherit_id="sale.sale_order_portal_template"
+              priority="50">
+        <xpath expr="//div[@id='sale_order_sidebar_button']" position="inside">
+            <a t-if="sale_order.state == 'sale'
+                     and not request.env.user._is_public()
+                     and sale_order.partner_id.commercial_partner_id == request.env.user.partner_id.commercial_partner_id"
+               role="button" class="btn btn-success"
+               data-bs-toggle="modal" data-bs-target="#portalPaymentProofModal" href="#">
+                <i class="fa fa-credit-card me-1"/> Pagar
+            </a>
+        </xpath>
+        <xpath expr="//div[hasclass('o_portal_sale_sidebar')]" position="after">
+            <div t-if="request.params.get('proof_submitted')"
+                 class="alert alert-success alert-dismissible d-print-none" role="status">
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"/>
+                El comprobante fue recibido. El pago aún debe ser registrado por contabilidad.
+            </div>
+            <div t-if="request.params.get('proof_error')"
+                 class="alert alert-danger alert-dismissible d-print-none" role="alert">
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"/>
+                <t t-if="request.params.get('proof_error') == 'missing'">Adjunta un comprobante.</t>
+                <t t-elif="request.params.get('proof_error') == 'size'">El archivo supera el límite de 10 MB.</t>
+                <t t-elif="request.params.get('proof_error') == 'type'">Usa una imagen JPG, PNG, WEBP o un archivo PDF.</t>
+                <t t-else="">Revisa el monto y la fecha del pago.</t>
+            </div>
+
+            <div t-if="sale_order.state == 'sale'
+                       and not request.env.user._is_public()
+                       and sale_order.partner_id.commercial_partner_id == request.env.user.partner_id.commercial_partner_id"
+                 class="modal fade" id="portalPaymentProofModal" tabindex="-1"
+                 aria-labelledby="portalPaymentProofModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form method="post" enctype="multipart/form-data"
+                              t-att-action="'/my/orders/%s/payment-proof' % sale_order.id">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="portalPaymentProofModalLabel">Reportar pago</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"/>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted">
+                                    Adjunta el comprobante de la orden <strong t-out="sale_order.name"/>.
+                                    Esto notificará a contabilidad, pero no creará un pago contable.
+                                </p>
+                                <div class="mb-3">
+                                    <label for="portal_payment_amount" class="form-label">Monto reportado</label>
+                                    <input id="portal_payment_amount" name="amount" type="number"
+                                           min="0.01" step="0.01" required="required"
+                                           class="form-control" t-att-value="sale_order.amount_total"/>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="portal_payment_date" class="form-label">Fecha del pago</label>
+                                    <input id="portal_payment_date" name="payment_date" type="date"
+                                           required="required" class="form-control"/>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="portal_payment_file" class="form-label">Comprobante</label>
+                                    <input id="portal_payment_file" name="payment_proof" type="file"
+                                           accept="image/jpeg,image/png,image/webp,application/pdf"
+                                           required="required" class="form-control"/>
+                                    <div class="form-text">JPG, PNG, WEBP o PDF; máximo 10 MB.</div>
+                                </div>
+                                <div>
+                                    <label for="portal_payment_note" class="form-label">Notas</label>
+                                    <textarea id="portal_payment_note" name="note" maxlength="2000"
+                                              rows="3" class="form-control"/>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-success">Enviar comprobante</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+    </template>
+</odoo>

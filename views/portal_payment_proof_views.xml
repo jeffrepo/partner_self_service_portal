@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="portal_payment_proof_view_search" model="ir.ui.view">
+        <field name="name">partner.portal.payment.proof.search</field>
+        <field name="model">partner.portal.payment.proof</field>
+        <field name="arch" type="xml">
+            <search string="Comprobantes de pago del portal">
+                <field name="name"/>
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="uploaded_by_id"/>
+                <filter name="submitted" string="Pendientes" domain="[('state', '=', 'submitted')]"/>
+                <filter name="reviewed" string="Revisados" domain="[('state', '=', 'reviewed')]"/>
+                <filter name="rejected" string="Rechazados" domain="[('state', '=', 'rejected')]"/>
+                <separator/>
+                <filter name="group_partner" string="Compañía cliente" context="{'group_by': 'partner_id'}"/>
+                <filter name="group_state" string="Estado" context="{'group_by': 'state'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="portal_payment_proof_view_list" model="ir.ui.view">
+        <field name="name">partner.portal.payment.proof.list</field>
+        <field name="model">partner.portal.payment.proof</field>
+        <field name="arch" type="xml">
+            <list string="Comprobantes de pago del portal"
+                  decoration-info="state == 'submitted'"
+                  decoration-success="state == 'reviewed'"
+                  decoration-danger="state == 'rejected'">
+                <field name="name" decoration-bf="1"/>
+                <field name="create_date"/>
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="uploaded_by_id" optional="hide"/>
+                <field name="payment_date"/>
+                <field name="amount" sum="Monto total"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'submitted'"
+                       decoration-success="state == 'reviewed'"
+                       decoration-danger="state == 'rejected'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="portal_payment_proof_view_form" model="ir.ui.view">
+        <field name="name">partner.portal.payment.proof.form</field>
+        <field name="model">partner.portal.payment.proof</field>
+        <field name="arch" type="xml">
+            <form string="Comprobante de pago del portal" create="0" delete="0">
+                <header>
+                    <button name="action_mark_reviewed" type="object" string="Marcar revisado"
+                            class="btn-primary" invisible="state != 'submitted'"/>
+                    <button name="action_mark_rejected" type="object" string="Rechazar"
+                            invisible="state != 'submitted'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="submitted,reviewed,rejected"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_download_attachment" type="object"
+                                class="oe_stat_button" icon="fa-download">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Descargar</span>
+                                <span class="o_stat_text">comprobante</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="sale_order_id"/>
+                            <field name="partner_id"/>
+                            <field name="uploaded_by_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="payment_date"/>
+                            <field name="amount"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="attachment_id"/>
+                        </group>
+                    </group>
+                    <group string="Notas">
+                        <field name="note" nolabel="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="portal_payment_proof_action" model="ir.actions.act_window">
+        <field name="name">Comprobantes del portal</field>
+        <field name="res_model">partner.portal.payment.proof</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="portal_payment_proof_view_search"/>
+        <field name="context">{'search_default_submitted': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay comprobantes enviados desde el portal.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_portal_payment_proof"
+              name="Comprobantes del portal"
+              parent="sale.sale_order_menu"
+              action="portal_payment_proof_action"
+              sequence="40"
+              groups="sales_team.group_sale_salesman,account.group_account_invoice"/>
+</odoo>
