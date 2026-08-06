@@ -1,3 +1,4 @@
+from . import account_move
 from . import portal_order_request
 from . import portal_payment_proof
 from . import res_company

@@ -1,12 +1,13 @@
 {
     "name": "Partner Self-Service Portal",
     "summary": "Portal de clientes con inventario, solicitudes y comprobantes de pago",
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.2.0",
     "category": "Sales/Sales",
     "author": "Jeffrepo",
     "license": "LGPL-3",
     "depends": [
         "account",
+        "infilefel",
         "portal",
         "sale_management",
         "sale_stock",

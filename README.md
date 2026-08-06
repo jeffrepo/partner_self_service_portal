@@ -5,6 +5,8 @@
 ## Funcionalidad
 
 - Conserva las páginas estándar de órdenes de venta y facturas de Odoo.
+- Muestra **Ver documento FEL** en la factura del portal cuando `infilefel` ha
+  completado `fel_documento_certificado` con una URL HTTPS de Feel.
 - Muestra los pagos de cliente en estado **En proceso** o **Pagado**.
 - Muestra en tiempo real el inventario libre del almacén asignado: existencia física menos cantidades reservadas.
 - Permite crear y editar solicitudes de compra con correlativo `SPR/AÑO/#####`.
@@ -28,8 +30,8 @@
 2. Actualiza la lista de aplicaciones.
 3. Instala **Partner Self-Service Portal**.
 
-Dependencias instaladas automáticamente: `account`, `portal`, `sale_management`,
-`sale_stock` y `website`.
+Dependencias instaladas automáticamente: `account`, `infilefel`, `portal`,
+`sale_management`, `sale_stock` y `website`.
 
 ## Configuración
 

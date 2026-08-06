@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <template id="portal_invoice_fel_document"
+              name="Portal invoice FEL document"
+              inherit_id="account.portal_invoice_page"
+              priority="40">
+        <xpath expr="//div[hasclass('o_download_pdf')]" position="inside">
+            <t t-set="fel_document_url"
+               t-value="invoice._get_portal_fel_document_url()"/>
+            <a t-if="fel_document_url"
+               class="btn btn-primary flex-grow-1"
+               t-att-href="fel_document_url"
+               target="_blank"
+               rel="noopener noreferrer"
+               title="Abrir documento certificado FEL"
+               role="button">
+                <i class="fa fa-external-link"/>
+                Ver documento FEL
+            </a>
+        </xpath>
+    </template>
+
     <template id="portal_breadcrumbs_partner_self_service"
               name="Navegación del portal de autoservicio"
               inherit_id="portal.portal_breadcrumbs"
