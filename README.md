@@ -5,8 +5,10 @@
 ## Funcionalidad
 
 - Conserva las páginas estándar de órdenes de venta y facturas de Odoo.
-- Muestra **Ver documento FEL** en la factura del portal cuando `infilefel` ha
-  completado `fel_documento_certificado` con una URL HTTPS de Feel.
+- Muestra el estado del documento FEL en la lista y en el detalle de la factura.
+  Cuando `infilefel` completa `fel_documento_certificado` con una URL HTTPS de
+  Feel, permite abrirla; si está vacío, informa que la factura aún no ha sido
+  certificada.
 - Muestra los pagos de cliente en estado **En proceso** o **Pagado**.
 - Muestra en tiempo real el inventario libre del almacén asignado: existencia física menos cantidades reservadas.
 - Permite crear y editar solicitudes de compra con correlativo `SPR/AÑO/#####`.

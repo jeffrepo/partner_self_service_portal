@@ -3,6 +3,11 @@ from odoo.tests import TransactionCase, tagged
 
 @tagged("post_install", "-at_install")
 class TestAccountMoveFelPortalLink(TransactionCase):
+    def test_empty_certificate_has_no_download_url(self):
+        invoice = self.env["account.move"].new()
+
+        self.assertFalse(invoice._get_portal_fel_document_url())
+
     def test_accepts_feel_certificate_url(self):
         document_url = (
             "https://report.feel.com.gt/ingfacereport/"

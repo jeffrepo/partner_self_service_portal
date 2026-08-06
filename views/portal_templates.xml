@@ -17,6 +17,124 @@
                 <i class="fa fa-external-link"/>
                 Ver documento FEL
             </a>
+            <button t-else=""
+                    type="button"
+                    class="btn btn-outline-secondary flex-grow-1"
+                    data-bs-toggle="modal"
+                    data-bs-target="#felNotCertifiedModal">
+                <i class="fa fa-file-text-o"/>
+                Documento FEL
+            </button>
+        </xpath>
+        <xpath expr="//div[hasclass('o_portal_invoice_sidebar')]" position="after">
+            <div t-if="not invoice._get_portal_fel_document_url()"
+                 class="modal fade"
+                 id="felNotCertifiedModal"
+                 tabindex="-1"
+                 aria-labelledby="felNotCertifiedModalLabel"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="felNotCertifiedModalLabel">
+                                Documento FEL no disponible
+                            </h5>
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Cerrar"/>
+                        </div>
+                        <div class="modal-body">
+                            <p t-if="invoice.fel_documento_certificado" class="mb-0">
+                                La factura tiene un enlace FEL registrado, pero no es una
+                                URL HTTPS válida de Feel. Solicita una revisión interna.
+                            </p>
+                            <p t-else="" class="mb-0">
+                                La factura <strong t-out="invoice.name"/> todavía no ha
+                                sido certificada y no existe un documento FEL para descargar.
+                            </p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button"
+                                    class="btn btn-secondary"
+                                    data-bs-dismiss="modal">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+    <template id="portal_invoice_list_fel_document"
+              name="Portal invoice list FEL document"
+              inherit_id="account.portal_my_invoices"
+              priority="40">
+        <xpath expr="//th[@name='status']" position="after">
+            <th name="fel_document" class="d-none d-lg-table-cell">
+                Documento FEL
+            </th>
+        </xpath>
+        <xpath expr="//td[@name='invoice_status']" position="after">
+            <td name="invoice_fel_document" class="d-none d-lg-table-cell">
+                <t t-set="fel_document_url"
+                   t-value="invoice._get_portal_fel_document_url()"/>
+                <a t-if="fel_document_url"
+                   class="btn btn-sm btn-outline-primary"
+                   t-att-href="fel_document_url"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    <i class="fa fa-external-link"/>
+                    Ver FEL
+                </a>
+                <button t-else=""
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="modal"
+                        t-att-data-bs-target="'#felNotCertifiedModal%s' % invoice.id">
+                    <i class="fa fa-file-text-o"/>
+                    No certificado
+                </button>
+                <div t-if="not fel_document_url"
+                     class="modal fade"
+                     t-att-id="'felNotCertifiedModal%s' % invoice.id"
+                     tabindex="-1"
+                     t-att-aria-labelledby="'felNotCertifiedModalLabel%s' % invoice.id"
+                     aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content text-start">
+                            <div class="modal-header">
+                                <h5 class="modal-title"
+                                    t-att-id="'felNotCertifiedModalLabel%s' % invoice.id">
+                                    Documento FEL no disponible
+                                </h5>
+                                <button type="button"
+                                        class="btn-close"
+                                        data-bs-dismiss="modal"
+                                        aria-label="Cerrar"/>
+                            </div>
+                            <div class="modal-body">
+                                <p t-if="invoice.fel_documento_certificado" class="mb-0">
+                                    La factura tiene un enlace FEL registrado, pero no es una
+                                    URL HTTPS válida de Feel. Solicita una revisión interna.
+                                </p>
+                                <p t-else="" class="mb-0">
+                                    La factura <strong t-out="invoice.name"/> todavía no ha
+                                    sido certificada y no existe un documento FEL para descargar.
+                                </p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button"
+                                        class="btn btn-secondary"
+                                        data-bs-dismiss="modal">
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </td>
         </xpath>
     </template>
 
