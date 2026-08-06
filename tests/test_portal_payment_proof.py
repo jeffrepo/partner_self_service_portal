@@ -39,7 +39,7 @@ class TestPortalPaymentProof(PartnerSelfServicePortalCommon):
             }
         )
         attachment.res_id = proof.id
-        proof.notify_internal_users()
+        proof.with_user(self.portal_user).sudo().notify_internal_users()
 
         self.assertTrue(proof.name.startswith("CPP/"))
         self.assertEqual(proof.state, "submitted")
@@ -52,4 +52,23 @@ class TestPortalPaymentProof(PartnerSelfServicePortalCommon):
             limit=1,
         )
         self.assertTrue(queued_email)
-        self.assertIn(attachment, queued_email.attachment_ids)
+        self.assertEqual(len(queued_email.attachment_ids), 1)
+        email_attachment = queued_email.attachment_ids
+        self.assertNotEqual(email_attachment, attachment)
+        self.assertEqual(email_attachment.name, attachment.name)
+        self.assertEqual(email_attachment.mimetype, attachment.mimetype)
+        self.assertEqual(email_attachment.raw, attachment.raw)
+        self.assertEqual(email_attachment.res_model, "mail.message")
+        self.assertEqual(
+            email_attachment.res_id,
+            queued_email.mail_message_id.id,
+        )
+        prepared_email = queued_email._prepare_outgoing_list()[0]
+        self.assertIn(
+            (email_attachment.name, email_attachment.raw, email_attachment.mimetype),
+            prepared_email["attachments"],
+        )
+        chatter_message = request_record.sale_order_id.message_ids.filtered(
+            lambda message: attachment in message.attachment_ids
+        )
+        self.assertTrue(chatter_message)

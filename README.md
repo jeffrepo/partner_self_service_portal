@@ -14,11 +14,13 @@
   - crea una orden de venta para la compañía cliente;
   - asigna el almacén de la compañía cliente;
   - confirma la orden de venta;
-  - genera y reserva las operaciones de salida según la configuración nativa del almacén;
+  - genera, reserva y valida automáticamente las operaciones de salida según la
+    configuración nativa del almacén;
   - notifica por correo y actividad a los usuarios internos configurados.
 - Añade el botón **Pagar** en las órdenes confirmadas del portal.
 - El botón acepta JPG, PNG, WEBP o PDF de hasta 10 MB y registra un comprobante separado.
-- El comprobante **no crea un `account.payment`**. Se adjunta al chatter de la orden y notifica a los usuarios internos configurados.
+- El comprobante **no crea un `account.payment`**. Se adjunta al chatter de la orden y
+  también al correo enviado a los usuarios internos configurados.
 
 ## Instalación
 
@@ -58,9 +60,17 @@ de correo estándar para conservar la trazabilidad y los reintentos normales del
 
 ## Flujo de inventario
 
-La confirmación de la solicitud crea y confirma la orden de venta con su `warehouse_id`. Odoo genera la cadena de transferencias definida por el almacén y reserva la mercancía disponible. La validación física final de la transferencia queda en manos del operador de Inventario para respetar lotes, números de serie y flujos de una, dos o tres etapas.
+La confirmación de la solicitud crea y confirma la orden de venta con su `warehouse_id`.
+Después, el módulo reserva y valida automáticamente cada transferencia de la cadena
+definida por el almacén, incluyendo flujos de una, dos o tres etapas.
 
-Como el portal muestra inventario **libre**, una reserva confirmada reduce inmediatamente lo disponible para nuevas solicitudes, aunque la entrega física todavía no haya sido validada.
+La operación completa es transaccional. Si una transferencia requiere intervención
+manual —por ejemplo, por inventario no reservable, lotes/series incompletos o una ruta
+bloqueada— Odoo muestra el error y la solicitud permanece en borrador. No queda una
+orden de venta parcialmente procesada.
+
+Al quedar las transferencias en estado **Hecho**, el inventario físico del almacén se
+reduce inmediatamente.
 
 ## Seguridad
 

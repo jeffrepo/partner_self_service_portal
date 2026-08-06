@@ -10,10 +10,19 @@
                          string="Notificaciones del portal de clientes"
                          company_dependent="1"
                          help="Notifica solicitudes confirmadas y comprobantes de pago enviados desde el portal.">
-                    <field name="portal_notification_user_ids"
-                           widget="many2many_tags"
-                           options="{'no_create': True, 'no_open': True}"
-                           domain="[('share', '=', False), ('active', '=', True), ('company_ids', 'in', company_id)]"/>
+                    <div class="content-group">
+                        <label for="portal_notification_user_ids"
+                               string="Usuarios que recibirán los correos"/>
+                        <div class="mt8">
+                            <field name="portal_notification_user_ids"
+                                   widget="many2many_tags"
+                                   options="{'no_create': True, 'no_open': True}"
+                                   domain="[('share', '=', False), ('active', '=', True), ('company_ids', 'in', company_id)]"/>
+                        </div>
+                        <div class="text-muted">
+                            Cada usuario debe estar activo y tener una dirección de correo.
+                        </div>
+                    </div>
                 </setting>
             </xpath>
         </field>

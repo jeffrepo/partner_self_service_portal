@@ -1,6 +1,6 @@
 from markupsafe import Markup, escape
 
-from odoo import _, api, fields, models
+from odoo import SUPERUSER_ID, _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 from odoo.fields import Command
 
@@ -157,15 +157,17 @@ class PortalPaymentProof(models.Model):
             "<strong>{sale_order}</strong>.</p>"
             "<p>Comprobante: <strong>{proof}</strong><br/>"
             "Monto reportado: <strong>{amount}</strong><br/>"
-            "Fecha del pago: <strong>{payment_date}</strong></p>"
+            "Fecha del pago: <strong>{payment_date}</strong><br/>"
+            "Archivo adjunto: <strong>{attachment}</strong></p>"
         ).format(
             uploaded_by=escape(self.uploaded_by_id.display_name),
             sale_order=escape(self.sale_order_id.name),
             proof=escape(self.name),
             amount=escape(f"{self.amount:.2f} {self.currency_id.name}"),
             payment_date=escape(fields.Date.to_string(self.payment_date)),
+            attachment=escape(self.attachment_id.name),
         )
-        self.sale_order_id.message_post(
+        self.sale_order_id.with_user(SUPERUSER_ID).message_post(
             body=body,
             author_id=self.uploaded_by_id.id,
             attachment_ids=self.attachment_id.ids,
@@ -174,7 +176,7 @@ class PortalPaymentProof(models.Model):
         )
         email_recipients = recipients.filtered("partner_id.email")
         if email_recipients:
-            self.env["mail.mail"].sudo().create(
+            outgoing_mail = self.env["mail.mail"].sudo().create(
                 {
                     "subject": _(
                         "Comprobante %(proof)s - Orden %(order)s",
@@ -187,11 +189,19 @@ class PortalPaymentProof(models.Model):
                     "recipient_ids": [
                         Command.set(email_recipients.partner_id.ids)
                     ],
-                    "attachment_ids": [Command.link(self.attachment_id.id)],
                     "author_id": self.uploaded_by_id.id,
                     "model": self.sale_order_id._name,
                     "res_id": self.sale_order_id.id,
                 }
+            )
+            email_attachment = self.attachment_id.sudo().copy(
+                {
+                    "res_model": "mail.message",
+                    "res_id": outgoing_mail.mail_message_id.id,
+                }
+            )
+            outgoing_mail.write(
+                {"attachment_ids": [Command.link(email_attachment.id)]}
             )
         for user in recipients:
             self.sale_order_id.activity_schedule(

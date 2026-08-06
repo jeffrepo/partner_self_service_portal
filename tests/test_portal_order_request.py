@@ -27,6 +27,15 @@ class TestPortalOrderRequest(PartnerSelfServicePortalCommon):
             2.0,
         )
         self.assertTrue(request_record.sale_order_id.picking_ids)
+        self.assertFalse(
+            request_record.sale_order_id.picking_ids.filtered(
+                lambda picking: picking.state != "done"
+            )
+        )
+        available = self.warehouse._get_portal_available_quantities(
+            self.product.ids
+        )
+        self.assertEqual(available[self.product.id], 8.0)
 
     def test_confirmation_rejects_insufficient_inventory(self):
         request_record = self._create_request(quantity=11.0)
