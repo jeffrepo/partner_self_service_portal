@@ -7,6 +7,7 @@
             <search string="Comprobantes de pago del portal">
                 <field name="name"/>
                 <field name="sale_order_id"/>
+                <field name="invoice_ids"/>
                 <field name="partner_id"/>
                 <field name="uploaded_by_id"/>
                 <filter name="submitted" string="Pendientes" domain="[('state', '=', 'submitted')]"/>
@@ -30,6 +31,8 @@
                 <field name="name" decoration-bf="1"/>
                 <field name="create_date"/>
                 <field name="sale_order_id"/>
+                <field name="sale_order_ids" widget="many2many_tags" optional="hide"/>
+                <field name="invoice_ids" widget="many2many_tags" optional="show"/>
                 <field name="partner_id"/>
                 <field name="uploaded_by_id" optional="hide"/>
                 <field name="payment_date"/>
@@ -72,6 +75,8 @@
                     <group>
                         <group>
                             <field name="sale_order_id"/>
+                            <field name="sale_order_ids" widget="many2many_tags"/>
+                            <field name="invoice_ids" widget="many2many_tags"/>
                             <field name="partner_id"/>
                             <field name="uploaded_by_id"/>
                             <field name="company_id" groups="base.group_multi_company"/>

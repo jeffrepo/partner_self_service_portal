@@ -43,6 +43,7 @@ class TestPortalPaymentProof(PartnerSelfServicePortalCommon):
 
         self.assertTrue(proof.name.startswith("CPP/"))
         self.assertEqual(proof.state, "submitted")
+        self.assertEqual(proof.sale_order_ids, request_record.sale_order_id)
         self.assertEqual(
             self.env["account.payment"].search_count([]),
             payment_count_before,
@@ -72,3 +73,41 @@ class TestPortalPaymentProof(PartnerSelfServicePortalCommon):
             lambda message: attachment in message.attachment_ids
         )
         self.assertTrue(chatter_message)
+
+    def test_one_proof_can_cover_multiple_invoices_and_orders(self):
+        first_request = self._create_request(quantity=2.0)
+        first_request.action_confirm()
+        second_request = self._create_request(quantity=2.0)
+        second_request.action_confirm()
+        sale_orders = first_request.sale_order_id | second_request.sale_order_id
+        invoices = self.env["account.move"]
+        for sale_order in sale_orders:
+            invoices |= sale_order._create_invoices()
+        invoices.action_post()
+        attachment = self.env["ir.attachment"].create(
+            {
+                "name": "batch-payment.pdf",
+                "datas": base64.b64encode(b"%PDF-1.4 batch test"),
+                "mimetype": "application/pdf",
+                "res_model": "partner.portal.payment.proof",
+                "res_id": 0,
+            }
+        )
+
+        proof = self.env["partner.portal.payment.proof"].create(
+            {
+                "sale_order_id": sale_orders[0].id,
+                "sale_order_ids": [(6, 0, sale_orders.ids)],
+                "invoice_ids": [(6, 0, invoices.ids)],
+                "partner_id": self.customer_company.id,
+                "uploaded_by_id": self.customer_contact.id,
+                "amount": sum(invoices.mapped("amount_residual")),
+                "attachment_id": attachment.id,
+            }
+        )
+
+        self.assertEqual(proof.sale_order_ids, sale_orders)
+        self.assertEqual(proof.invoice_ids, invoices)
+        self.assertEqual(len(invoices), 2)
+        for sale_order in sale_orders:
+            self.assertIn(proof, sale_order.portal_all_payment_proof_ids)

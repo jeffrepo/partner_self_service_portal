@@ -138,6 +138,191 @@
         </xpath>
     </template>
 
+    <template id="portal_invoice_list_batch_payment"
+              name="Portal invoice batch payment"
+              inherit_id="account.portal_my_invoices"
+              priority="45">
+        <xpath expr="//t[@t-if='invoices'][@t-call='portal.portal_table']" position="before">
+            <div t-if="request.params.get('batch_proof_submitted')"
+                 class="alert alert-success alert-dismissible d-print-none"
+                 role="status">
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Cerrar"/>
+                El comprobante fue recibido para las facturas seleccionadas. Contabilidad
+                todavía debe revisar y registrar el pago.
+            </div>
+            <div t-if="request.params.get('batch_proof_error')"
+                 class="alert alert-danger alert-dismissible d-print-none"
+                 role="alert">
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Cerrar"/>
+                <t t-if="request.params.get('batch_proof_error') == 'selection'">
+                    Selecciona al menos una factura válida.
+                </t>
+                <t t-elif="request.params.get('batch_proof_error') == 'orders'">
+                    Todas las facturas deben proceder de una orden de venta confirmada.
+                </t>
+                <t t-elif="request.params.get('batch_proof_error') == 'currency'">
+                    Las facturas seleccionadas deben usar la misma compañía y moneda.
+                </t>
+                <t t-elif="request.params.get('batch_proof_error') == 'missing'">
+                    Adjunta un comprobante.
+                </t>
+                <t t-elif="request.params.get('batch_proof_error') == 'size'">
+                    El archivo supera el límite de 10 MB.
+                </t>
+                <t t-elif="request.params.get('batch_proof_error') == 'type'">
+                    Usa una imagen JPG, PNG, WEBP o un archivo PDF.
+                </t>
+                <t t-else="">Revisa el monto, la fecha y las facturas seleccionadas.</t>
+            </div>
+            <div t-if="invoices"
+                 class="d-flex justify-content-end mb-3 d-print-none">
+                <button id="portalBatchPaymentButton"
+                        type="button"
+                        class="btn btn-success"
+                        disabled="disabled"
+                        data-bs-toggle="modal"
+                        data-bs-target="#portalBatchPaymentModal">
+                    <i class="fa fa-credit-card me-1"/> Pagar seleccionadas
+                </button>
+            </div>
+        </xpath>
+
+        <xpath expr="//th[@name='invoice_number']" position="before">
+            <th name="batch_payment_selection" class="d-print-none">
+                <input id="portalBatchPaymentSelectAll"
+                       type="checkbox"
+                       class="form-check-input"
+                       title="Seleccionar todas las facturas pagables"
+                       aria-label="Seleccionar todas las facturas pagables"/>
+            </th>
+        </xpath>
+        <xpath expr="//th[@name='invoice_number']" position="after">
+            <th name="fel_series" class="d-none d-lg-table-cell">Serie FEL</th>
+            <th name="fel_number" class="d-none d-lg-table-cell">Número FEL</th>
+        </xpath>
+        <xpath expr="//tbody/t/tr/td[a[@t-att-href='invoice.get_portal_url()']]"
+               position="before">
+            <td name="batch_payment_selection" class="d-print-none">
+                <input t-if="invoice._is_portal_batch_payment_eligible()"
+                       type="checkbox"
+                       name="invoice_ids"
+                       t-att-value="invoice.id"
+                       t-att-data-amount="invoice.amount_residual"
+                       form="portalBatchPaymentForm"
+                       class="form-check-input o_portal_batch_invoice"
+                       t-att-aria-label="'Seleccionar factura %s' % invoice.name"/>
+                <span t-else="" class="text-muted">-</span>
+            </td>
+        </xpath>
+        <xpath expr="//tbody/t/tr/td[a[@t-att-href='invoice.get_portal_url()']]"
+               position="after">
+            <td name="invoice_fel_series" class="d-none d-lg-table-cell">
+                <span t-out="invoice._get_portal_fel_series() or '-'"/>
+            </td>
+            <td name="invoice_fel_number" class="d-none d-lg-table-cell">
+                <span t-out="invoice._get_portal_fel_number() or '-'"/>
+            </td>
+        </xpath>
+
+        <xpath expr="//t[@t-if='invoices'][@t-call='portal.portal_table']" position="after">
+            <div class="modal fade"
+                 id="portalBatchPaymentModal"
+                 tabindex="-1"
+                 aria-labelledby="portalBatchPaymentModalLabel"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form id="portalBatchPaymentForm"
+                              method="post"
+                              enctype="multipart/form-data"
+                              action="/my/invoices/payment-proof">
+                            <input type="hidden"
+                                   name="csrf_token"
+                                   t-att-value="request.csrf_token()"/>
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="portalBatchPaymentModalLabel">
+                                    Reportar pago de facturas
+                                </h5>
+                                <button type="button"
+                                        class="btn-close"
+                                        data-bs-dismiss="modal"
+                                        aria-label="Cerrar"/>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted">
+                                    El comprobante se asociará a todas las facturas
+                                    seleccionadas. Esto no creará un pago contable.
+                                </p>
+                                <div class="mb-3">
+                                    <label for="portal_batch_payment_amount" class="form-label">
+                                        Monto reportado
+                                    </label>
+                                    <input id="portal_batch_payment_amount"
+                                           name="amount"
+                                           type="number"
+                                           min="0.01"
+                                           step="0.01"
+                                           required="required"
+                                           class="form-control"/>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="portal_batch_payment_date" class="form-label">
+                                        Fecha del pago
+                                    </label>
+                                    <input id="portal_batch_payment_date"
+                                           name="payment_date"
+                                           type="date"
+                                           required="required"
+                                           class="form-control"/>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="portal_batch_payment_file" class="form-label">
+                                        Comprobante
+                                    </label>
+                                    <input id="portal_batch_payment_file"
+                                           name="payment_proof"
+                                           type="file"
+                                           accept="image/jpeg,image/png,image/webp,application/pdf"
+                                           required="required"
+                                           class="form-control"/>
+                                    <div class="form-text">
+                                        JPG, PNG, WEBP o PDF; máximo 10 MB.
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="portal_batch_payment_note" class="form-label">
+                                        Notas
+                                    </label>
+                                    <textarea id="portal_batch_payment_note"
+                                              name="note"
+                                              maxlength="2000"
+                                              rows="3"
+                                              class="form-control"/>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button"
+                                        class="btn btn-outline-secondary"
+                                        data-bs-dismiss="modal">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="btn btn-success">
+                                    Enviar comprobante
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
     <template id="portal_breadcrumbs_partner_self_service"
               name="Navegación del portal de autoservicio"
               inherit_id="portal.portal_breadcrumbs"
@@ -374,18 +559,20 @@
                     <span class="text-muted" t-out="purchase_request.warehouse_id.display_name"/>
                 </div>
                 <div class="d-flex gap-2 d-print-none">
+                    <a t-attf-href="/my/purchase-requests/{{ purchase_request.id }}/report"
+                       class="btn btn-outline-secondary">
+                        <i class="fa fa-print me-1"/> Imprimir
+                    </a>
                     <a t-if="purchase_request.state == 'draft'"
                        t-attf-href="/my/purchase-requests/{{ purchase_request.id }}/edit"
                        class="btn btn-outline-primary">Editar</a>
-                    <form t-if="purchase_request.state == 'draft'"
-                          method="post"
-                          t-attf-action="/my/purchase-requests/{{ purchase_request.id }}/confirm">
-                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                        <button type="submit" class="btn btn-primary"
-                                onclick="this.disabled=true; this.form.submit();">
-                            Confirmar
-                        </button>
-                    </form>
+                    <button t-if="purchase_request.state == 'draft'"
+                            type="button"
+                            class="btn btn-primary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#portalConfirmationKeyModal">
+                        Confirmar
+                    </button>
                     <a t-if="purchase_request.sale_order_id"
                        t-att-href="purchase_request.sale_order_id.get_portal_url()"
                        class="btn btn-success">Ver orden de venta</a>
@@ -399,7 +586,7 @@
                         <dd class="col-sm-7" t-out="purchase_request.partner_id.display_name"/>
                         <dt class="col-sm-5">Solicitado por</dt>
                         <dd class="col-sm-7" t-out="purchase_request.requested_by_id.display_name"/>
-                        <dt class="col-sm-5">Referencia</dt>
+                        <dt class="col-sm-5">Proyecto</dt>
                         <dd class="col-sm-7" t-out="purchase_request.customer_reference or '-'"/>
                     </dl>
                 </div>
@@ -443,6 +630,60 @@
                 <div class="card-header">Notas</div>
                 <div class="card-body"><span t-out="purchase_request.note"/></div>
             </div>
+
+            <div t-if="purchase_request.state == 'draft'"
+                 class="modal fade"
+                 id="portalConfirmationKeyModal"
+                 tabindex="-1"
+                 aria-labelledby="portalConfirmationKeyModalLabel"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form method="post"
+                              t-attf-action="/my/purchase-requests/{{ purchase_request.id }}/confirm">
+                            <input type="hidden"
+                                   name="csrf_token"
+                                   t-att-value="request.csrf_token()"/>
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="portalConfirmationKeyModalLabel">
+                                    Autorizar compra
+                                </h5>
+                                <button type="button"
+                                        class="btn-close"
+                                        data-bs-dismiss="modal"
+                                        aria-label="Cerrar"/>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted">
+                                    Ingresa tu clave personal para confirmar la solicitud
+                                    <strong t-out="purchase_request.name"/>.
+                                </p>
+                                <label for="portal_confirmation_key" class="form-label">
+                                    Clave de confirmación
+                                </label>
+                                <input id="portal_confirmation_key"
+                                       name="confirmation_key"
+                                       type="password"
+                                       minlength="6"
+                                       maxlength="128"
+                                       autocomplete="current-password"
+                                       required="required"
+                                       class="form-control"/>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button"
+                                        class="btn btn-outline-secondary"
+                                        data-bs-dismiss="modal">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    Confirmar compra
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </t>
     </template>
 
@@ -473,7 +714,7 @@
                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                 <div class="row g-3 mb-4">
                     <div class="col-md-6">
-                        <label for="customer_reference" class="form-label">Referencia del cliente</label>
+                        <label for="customer_reference" class="form-label">Proyecto</label>
                         <input id="customer_reference" name="customer_reference" type="text"
                                maxlength="128" class="form-control" t-att-value="form_reference"/>
                     </div>

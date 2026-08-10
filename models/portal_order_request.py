@@ -57,7 +57,7 @@ class PortalOrderRequest(models.Model):
         readonly=True,
     )
     customer_reference = fields.Char(
-        string="Referencia del cliente",
+        string="Proyecto",
         tracking=True,
     )
     note = fields.Text(string="Notas", tracking=True)
@@ -272,6 +272,12 @@ class PortalOrderRequest(models.Model):
 
     def action_confirm(self):
         for request_record in self:
+            self.env.cr.execute(
+                "SELECT id FROM partner_portal_order_request "
+                "WHERE id = %s FOR UPDATE",
+                [request_record.id],
+            )
+            request_record.invalidate_recordset(["state", "sale_order_id"])
             if request_record.state != "draft":
                 raise UserError(_("Solo las solicitudes en borrador pueden confirmarse."))
 

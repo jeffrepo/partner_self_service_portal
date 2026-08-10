@@ -11,8 +11,8 @@
             <xpath expr="//notebook" position="inside">
                 <page string="Comprobantes del portal"
                       name="portal_payment_proofs"
-                      invisible="not portal_payment_proof_ids">
-                    <field name="portal_payment_proof_ids" readonly="1">
+                      invisible="not portal_all_payment_proof_ids">
+                    <field name="portal_all_payment_proof_ids" readonly="1">
                         <list>
                             <field name="name"/>
                             <field name="create_date"/>

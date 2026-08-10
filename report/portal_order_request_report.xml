@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_report_portal_order_request" model="ir.actions.report">
+        <field name="name">Solicitud de compra</field>
+        <field name="model">partner.portal.order.request</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">partner_self_service_portal.report_portal_order_request</field>
+        <field name="report_file">partner_self_service_portal.report_portal_order_request</field>
+        <field name="binding_model_id" ref="model_partner_portal_order_request"/>
+        <field name="binding_type">report</field>
+        <field name="print_report_name">'Solicitud - %s' % (object.name)</field>
+    </record>
+
+    <template id="report_portal_order_request">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="o" t-value="doc"/>
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <div class="row mb-4">
+                            <div class="col-8">
+                                <h2>Solicitud de compra</h2>
+                                <h3 t-out="doc.name"/>
+                            </div>
+                            <div class="col-4 text-end">
+                                <strong>Estado:</strong>
+                                <span t-field="doc.state"/>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <p class="mb-1">
+                                    <strong>Compañía:</strong>
+                                    <span t-out="doc.partner_id.display_name"/>
+                                </p>
+                                <p class="mb-1">
+                                    <strong>Solicitado por:</strong>
+                                    <span t-out="doc.requested_by_id.display_name"/>
+                                </p>
+                                <p class="mb-1">
+                                    <strong>Proyecto:</strong>
+                                    <span t-out="doc.customer_reference or '-'"/>
+                                </p>
+                            </div>
+                            <div class="col-6">
+                                <p class="mb-1">
+                                    <strong>Almacén:</strong>
+                                    <span t-out="doc.warehouse_id.display_name"/>
+                                </p>
+                                <p class="mb-1">
+                                    <strong>Creada:</strong>
+                                    <span t-field="doc.create_date"/>
+                                </p>
+                                <p t-if="doc.confirmed_at" class="mb-1">
+                                    <strong>Confirmada:</strong>
+                                    <span t-field="doc.confirmed_at"/>
+                                </p>
+                                <p t-if="doc.sale_order_id" class="mb-1">
+                                    <strong>Orden de venta:</strong>
+                                    <span t-out="doc.sale_order_id.name"/>
+                                </p>
+                            </div>
+                        </div>
+
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Producto</th>
+                                    <th class="text-end">Cantidad</th>
+                                    <th>Unidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="doc.line_ids" t-as="line">
+                                    <td t-out="line.product_id.default_code or '-'"/>
+                                    <td t-out="line.product_id.display_name"/>
+                                    <td class="text-end" t-out="line.product_uom_qty"/>
+                                    <td t-out="line.product_uom_id.name"/>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="2" class="text-end">
+                                        <strong>Cantidad total</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong t-out="doc.total_requested_qty"/>
+                                    </td>
+                                    <td/>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <div t-if="doc.note" class="mt-4">
+                            <strong>Notas</strong>
+                            <p t-out="doc.note"/>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

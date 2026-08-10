@@ -29,6 +29,24 @@ class PortalPaymentProof(models.Model):
         index=True,
         tracking=True,
     )
+    sale_order_ids = fields.Many2many(
+        comodel_name="sale.order",
+        relation="portal_payment_proof_sale_order_rel",
+        column1="proof_id",
+        column2="sale_order_id",
+        string="Órdenes de venta",
+        readonly=True,
+        copy=False,
+    )
+    invoice_ids = fields.Many2many(
+        comodel_name="account.move",
+        relation="portal_payment_proof_account_move_rel",
+        column1="proof_id",
+        column2="move_id",
+        string="Facturas",
+        readonly=True,
+        copy=False,
+    )
     partner_id = fields.Many2one(
         comodel_name="res.partner",
         string="Compañía cliente",
@@ -127,7 +145,60 @@ class PortalPaymentProof(models.Model):
                     "partner.portal.payment.proof"
                 ) or _("Nuevo")
             normalized_vals_list.append(values)
-        return super().create(normalized_vals_list)
+        proofs = super().create(normalized_vals_list)
+        for proof in proofs:
+            if proof.sale_order_id not in proof.sale_order_ids:
+                proof.sudo().write(
+                    {"sale_order_ids": [Command.link(proof.sale_order_id.id)]}
+                )
+            proof._validate_linked_documents()
+        return proofs
+
+    def _validate_linked_documents(self):
+        for proof in self:
+            sale_orders = proof.sale_order_ids | proof.sale_order_id
+            if any(order.state != "sale" for order in sale_orders):
+                raise ValidationError(
+                    _("Todas las órdenes relacionadas deben estar confirmadas.")
+                )
+            if any(
+                order.partner_id.commercial_partner_id != proof.partner_id
+                for order in sale_orders
+            ):
+                raise ValidationError(
+                    _("Todas las órdenes deben pertenecer a la misma compañía cliente.")
+                )
+            if any(
+                order.company_id != proof.company_id
+                or order.currency_id != proof.currency_id
+                for order in sale_orders
+            ):
+                raise ValidationError(
+                    _("Las órdenes relacionadas deben usar la misma compañía y moneda.")
+                )
+            for invoice in proof.invoice_ids:
+                if invoice.state != "posted" or invoice.move_type != "out_invoice":
+                    raise ValidationError(
+                        _("Solo se pueden reportar pagos para facturas de cliente publicadas.")
+                    )
+                if invoice.partner_id.commercial_partner_id != proof.partner_id:
+                    raise ValidationError(
+                        _("Todas las facturas deben pertenecer a la misma compañía cliente.")
+                    )
+                linked_orders = invoice.invoice_line_ids.sale_line_ids.order_id
+                if not linked_orders or not linked_orders & sale_orders:
+                    raise ValidationError(
+                        _("Una factura seleccionada no corresponde a las órdenes indicadas.")
+                    )
+
+    @api.constrains(
+        "sale_order_id",
+        "sale_order_ids",
+        "invoice_ids",
+        "partner_id",
+    )
+    def _check_linked_documents(self):
+        self._validate_linked_documents()
 
     def action_mark_reviewed(self):
         self.write({"state": "reviewed"})
@@ -152,36 +223,49 @@ class PortalPaymentProof(models.Model):
         recipients = self.company_id.portal_notification_user_ids.filtered(
             lambda user: user.active and not user.share
         )
+        sale_orders = self.sale_order_ids | self.sale_order_id
+        sale_order_names = ", ".join(sale_orders.mapped("name"))
+        invoice_names = ", ".join(self.invoice_ids.mapped("name"))
+        invoice_paragraph = (
+            Markup("<p>Facturas seleccionadas: <strong>{invoices}</strong>.</p>").format(
+                invoices=escape(invoice_names)
+            )
+            if invoice_names
+            else Markup("")
+        )
         body = Markup(
-            "<p>{uploaded_by} reportó un pago para la orden de venta "
-            "<strong>{sale_order}</strong>.</p>"
+            "<p>{uploaded_by} reportó un pago para las órdenes de venta "
+            "<strong>{sale_orders}</strong>.</p>"
+            "{invoice_paragraph}"
             "<p>Comprobante: <strong>{proof}</strong><br/>"
             "Monto reportado: <strong>{amount}</strong><br/>"
             "Fecha del pago: <strong>{payment_date}</strong><br/>"
             "Archivo adjunto: <strong>{attachment}</strong></p>"
         ).format(
             uploaded_by=escape(self.uploaded_by_id.display_name),
-            sale_order=escape(self.sale_order_id.name),
+            sale_orders=escape(sale_order_names),
+            invoice_paragraph=invoice_paragraph,
             proof=escape(self.name),
             amount=escape(f"{self.amount:.2f} {self.currency_id.name}"),
             payment_date=escape(fields.Date.to_string(self.payment_date)),
             attachment=escape(self.attachment_id.name),
         )
-        self.sale_order_id.with_user(SUPERUSER_ID).message_post(
-            body=body,
-            author_id=self.uploaded_by_id.id,
-            attachment_ids=self.attachment_id.ids,
-            message_type="comment",
-            subtype_xmlid="mail.mt_note",
-        )
+        for sale_order in sale_orders:
+            sale_order.with_user(SUPERUSER_ID).message_post(
+                body=body,
+                author_id=self.uploaded_by_id.id,
+                attachment_ids=self.attachment_id.ids,
+                message_type="comment",
+                subtype_xmlid="mail.mt_note",
+            )
         email_recipients = recipients.filtered("partner_id.email")
         if email_recipients:
             outgoing_mail = self.env["mail.mail"].sudo().create(
                 {
                     "subject": _(
-                        "Comprobante %(proof)s - Orden %(order)s",
+                        "Comprobante %(proof)s - %(documents)s",
                         proof=self.name,
-                        order=self.sale_order_id.name,
+                        documents=invoice_names or sale_order_names,
                     ),
                     "body_html": body,
                     "email_from": self.company_id.partner_id.email_formatted
@@ -204,10 +288,11 @@ class PortalPaymentProof(models.Model):
                 {"attachment_ids": [Command.link(email_attachment.id)]}
             )
         for user in recipients:
-            self.sale_order_id.activity_schedule(
-                "mail.mail_activity_data_todo",
-                user_id=user.id,
-                summary=_("Comprobante de pago: %s", self.sale_order_id.name),
-                note=body,
-            )
+            for sale_order in sale_orders:
+                sale_order.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    user_id=user.id,
+                    summary=_("Comprobante de pago: %s", sale_order.name),
+                    note=body,
+                )
         return True

@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from odoo import _, fields, http
 from odoo.exceptions import UserError, ValidationError
 from odoo.fields import Command
-from odoo.http import request
+from odoo.http import content_disposition, request
 from odoo.addons.portal.controllers.portal import (
     CustomerPortal,
     pager as portal_pager,
@@ -360,6 +360,52 @@ class PartnerSelfServicePortal(CustomerPortal):
             values,
         )
 
+    def _render_purchase_request_confirmation_error(
+        self, portal_context, request_record, error_message
+    ):
+        values = self._base_page_values("portal_purchase_request", portal_context)
+        values.update(
+            {
+                "purchase_request": request_record,
+                "confirmation_error": error_message,
+            }
+        )
+        return request.render(
+            "partner_self_service_portal.portal_purchase_request_detail",
+            values,
+        )
+
+    @http.route(
+        "/my/purchase-requests/<int:request_id>/report",
+        type="http",
+        auth="user",
+        website=True,
+        methods=["GET"],
+    )
+    def portal_purchase_request_report(self, request_id, **kwargs):
+        portal_context = self._get_customer_portal_context()
+        request_record = self._get_portal_request(
+            request_id, portal_context["company_partner"]
+        )
+        if not request_record:
+            return request.redirect("/my/purchase-requests")
+        pdf_content, _content_type = (
+            request.env["ir.actions.report"]
+            .sudo()
+            ._render_qweb_pdf(
+                "partner_self_service_portal.action_report_portal_order_request",
+                res_ids=request_record.ids,
+            )
+        )
+        filename = f"{request_record.name.replace('/', '-')}.pdf"
+        return request.make_response(
+            pdf_content,
+            headers=[
+                ("Content-Type", "application/pdf"),
+                ("Content-Disposition", content_disposition(filename)),
+            ],
+        )
+
     @staticmethod
     def _parse_quantity(raw_value):
         if raw_value in (None, ""):
@@ -573,23 +619,31 @@ class PartnerSelfServicePortal(CustomerPortal):
         )
         if not request_record:
             return request.redirect("/my/purchase-requests")
+        if request_record.state != "draft":
+            return request.redirect(
+                f"/my/purchase-requests/{request_record.id}"
+            )
+
+        key_is_valid, key_error = (
+            request.env.user.partner_id.sudo()._verify_portal_confirmation_key(
+                post.get("confirmation_key")
+            )
+        )
+        if not key_is_valid:
+            return self._render_purchase_request_confirmation_error(
+                portal_context,
+                request_record,
+                key_error,
+            )
 
         try:
             with request.env.cr.savepoint():
                 request_record.action_confirm()
         except (UserError, ValidationError) as error:
-            values = self._base_page_values(
-                "portal_purchase_request", portal_context
-            )
-            values.update(
-                {
-                    "purchase_request": request_record,
-                    "confirmation_error": error.args[0],
-                }
-            )
-            return request.render(
-                "partner_self_service_portal.portal_purchase_request_detail",
-                values,
+            return self._render_purchase_request_confirmation_error(
+                portal_context,
+                request_record,
+                error.args[0],
             )
         return request.redirect(
             f"/my/purchase-requests/{request_record.id}?confirmed=1"
@@ -611,6 +665,71 @@ class PartnerSelfServicePortal(CustomerPortal):
             )
         )
 
+    def _prepare_payment_proof_upload(self, post):
+        uploaded_file = request.httprequest.files.get("payment_proof")
+        if not uploaded_file or not uploaded_file.filename:
+            return False, "missing"
+        content = uploaded_file.read(MAX_PAYMENT_PROOF_SIZE + 1)
+        if len(content) > MAX_PAYMENT_PROOF_SIZE:
+            return False, "size"
+        mimetype = guess_mimetype(
+            content,
+            default=uploaded_file.mimetype or "application/octet-stream",
+        )
+        if mimetype not in ALLOWED_PAYMENT_PROOF_MIMETYPES:
+            return False, "type"
+        try:
+            amount = self._parse_quantity(post.get("amount"))
+            payment_date = fields.Date.to_date(post.get("payment_date"))
+        except (TypeError, ValueError):
+            return False, "data"
+        if amount <= 0 or not payment_date:
+            return False, "data"
+        return {
+            "content": content,
+            "filename": secure_filename(uploaded_file.filename) or "comprobante",
+            "mimetype": mimetype,
+            "amount": amount,
+            "payment_date": payment_date,
+            "note": post.get("note", "")[:2000],
+        }, False
+
+    def _create_portal_payment_proof(
+        self,
+        company_partner,
+        sale_orders,
+        upload_values,
+        invoices=None,
+    ):
+        invoices = invoices or request.env["account.move"]
+        with request.env.cr.savepoint():
+            attachment = request.env["ir.attachment"].sudo().create(
+                {
+                    "name": upload_values["filename"],
+                    "datas": base64.b64encode(upload_values["content"]),
+                    "mimetype": upload_values["mimetype"],
+                    "res_model": "partner.portal.payment.proof",
+                    "res_id": 0,
+                }
+            )
+            proof = request.env["partner.portal.payment.proof"].sudo().create(
+                {
+                    "sale_order_id": sale_orders[0].id,
+                    "sale_order_ids": [Command.set(sale_orders.ids)],
+                    "invoice_ids": [Command.set(invoices.ids)],
+                    "partner_id": company_partner.id,
+                    "uploaded_by_id": request.env.user.partner_id.id,
+                    "amount": upload_values["amount"],
+                    "payment_date": upload_values["payment_date"],
+                    "note": upload_values["note"],
+                    "attachment_id": attachment.id,
+                }
+            )
+            attachment.write({"res_id": proof.id})
+            attachment._post_add_create()
+            proof.notify_internal_users()
+        return proof
+
     @http.route(
         "/my/orders/<int:order_id>/payment-proof",
         type="http",
@@ -624,62 +743,81 @@ class PartnerSelfServicePortal(CustomerPortal):
         if not sale_order:
             return request.redirect("/my/orders")
 
-        uploaded_file = request.httprequest.files.get("payment_proof")
-        if not uploaded_file or not uploaded_file.filename:
+        upload_values, error_code = self._prepare_payment_proof_upload(post)
+        if error_code:
             return request.redirect(
-                f"{sale_order.get_portal_url()}?proof_error=missing"
+                f"{sale_order.get_portal_url()}?proof_error={error_code}"
             )
-        content = uploaded_file.read(MAX_PAYMENT_PROOF_SIZE + 1)
-        if len(content) > MAX_PAYMENT_PROOF_SIZE:
-            return request.redirect(
-                f"{sale_order.get_portal_url()}?proof_error=size"
-            )
-        mimetype = guess_mimetype(
-            content,
-            default=uploaded_file.mimetype or "application/octet-stream",
+        self._create_portal_payment_proof(
+            company_partner,
+            sale_order,
+            upload_values,
         )
-        if mimetype not in ALLOWED_PAYMENT_PROOF_MIMETYPES:
-            return request.redirect(
-                f"{sale_order.get_portal_url()}?proof_error=type"
-            )
-
-        try:
-            amount = self._parse_quantity(post.get("amount"))
-            payment_date = fields.Date.to_date(post.get("payment_date"))
-        except (TypeError, ValueError):
-            return request.redirect(
-                f"{sale_order.get_portal_url()}?proof_error=data"
-            )
-        if amount <= 0 or not payment_date:
-            return request.redirect(
-                f"{sale_order.get_portal_url()}?proof_error=data"
-            )
-
-        filename = secure_filename(uploaded_file.filename) or "comprobante"
-        with request.env.cr.savepoint():
-            attachment = request.env["ir.attachment"].sudo().create(
-                {
-                    "name": filename,
-                    "datas": base64.b64encode(content),
-                    "mimetype": mimetype,
-                    "res_model": "partner.portal.payment.proof",
-                    "res_id": 0,
-                }
-            )
-            proof = request.env["partner.portal.payment.proof"].sudo().create(
-                {
-                    "sale_order_id": sale_order.id,
-                    "partner_id": company_partner.id,
-                    "uploaded_by_id": request.env.user.partner_id.id,
-                    "amount": amount,
-                    "payment_date": payment_date,
-                    "note": post.get("note", "")[:2000],
-                    "attachment_id": attachment.id,
-                }
-            )
-            attachment.write({"res_id": proof.id})
-            attachment._post_add_create()
-            proof.notify_internal_users()
         return request.redirect(
             f"{sale_order.get_portal_url()}?proof_submitted=1"
         )
+
+    @http.route(
+        "/my/invoices/payment-proof",
+        type="http",
+        auth="user",
+        website=True,
+        methods=["POST"],
+    )
+    def portal_invoice_batch_payment_proof(self, **post):
+        company_partner = self._get_customer_company_partner()
+        if not company_partner:
+            return request.redirect("/my/invoices?batch_proof_error=access")
+        try:
+            invoice_ids = list(
+                dict.fromkeys(
+                    int(invoice_id)
+                    for invoice_id in request.httprequest.form.getlist("invoice_ids")
+                )
+            )
+        except (TypeError, ValueError):
+            invoice_ids = []
+        if not invoice_ids or len(invoice_ids) > 100:
+            return request.redirect("/my/invoices?batch_proof_error=selection")
+
+        invoices = request.env["account.move"].sudo().search(
+            [
+                ("id", "in", invoice_ids),
+                ("partner_id", "child_of", company_partner.id),
+                ("state", "=", "posted"),
+                ("move_type", "=", "out_invoice"),
+                ("amount_residual", "!=", 0),
+            ]
+        )
+        if len(invoices) != len(invoice_ids):
+            return request.redirect("/my/invoices?batch_proof_error=selection")
+
+        sale_orders = invoices.invoice_line_ids.sale_line_ids.order_id.filtered(
+            lambda order: order.state == "sale"
+        )
+        if not sale_orders or any(
+            not invoice.invoice_line_ids.sale_line_ids.order_id & sale_orders
+            for invoice in invoices
+        ):
+            return request.redirect("/my/invoices?batch_proof_error=orders")
+        if len(sale_orders.company_id) != 1 or len(sale_orders.currency_id) != 1:
+            return request.redirect("/my/invoices?batch_proof_error=currency")
+        if any(
+            invoice.company_id != sale_orders.company_id
+            or invoice.currency_id != sale_orders.currency_id
+            for invoice in invoices
+        ):
+            return request.redirect("/my/invoices?batch_proof_error=currency")
+
+        upload_values, error_code = self._prepare_payment_proof_upload(post)
+        if error_code:
+            return request.redirect(
+                f"/my/invoices?batch_proof_error={error_code}"
+            )
+        self._create_portal_payment_proof(
+            company_partner,
+            sale_orders,
+            upload_values,
+            invoices=invoices,
+        )
+        return request.redirect("/my/invoices?batch_proof_submitted=1")

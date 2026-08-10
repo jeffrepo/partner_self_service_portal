@@ -9,11 +9,14 @@
   Cuando `infilefel` completa `fel_documento_certificado` con una URL HTTPS de
   Feel, permite abrirla; si está vacío, informa que la factura aún no ha sido
   certificada.
+- Muestra la serie y el número FEL en la lista de facturas.
 - Muestra los pagos de cliente en estado **En proceso** o **Pagado**.
 - Muestra en tiempo real el inventario libre del almacén asignado: existencia física menos cantidades reservadas.
 - Permite crear y editar solicitudes de compra con correlativo `SPR/AÑO/#####`.
+- Usa el campo **Proyecto** en la solicitud y permite descargarla en PDF.
 - Solo permite solicitar productos almacenables, vendibles y con inventario libre.
 - Al confirmar una solicitud:
+  - solicita la clave personal del contacto que inició sesión;
   - vuelve a validar el inventario;
   - crea una orden de venta para la compañía cliente;
   - asigna el almacén de la compañía cliente;
@@ -22,6 +25,8 @@
     configuración nativa del almacén;
   - notifica por correo y actividad a los usuarios internos configurados.
 - Añade el botón **Pagar** en las órdenes confirmadas del portal.
+- En la lista de facturas permite seleccionar varias facturas abiertas y enviar un
+  único comprobante para todas ellas.
 - El botón acepta JPG, PNG, WEBP o PDF de hasta 10 MB y registra un comprobante separado.
 - El comprobante **no crea un `account.payment`**. Se adjunta al chatter de la orden y
   también al correo enviado a los usuarios internos configurados.
@@ -61,6 +66,19 @@ de correo estándar para conservar la trazabilidad y los reintentos normales del
 1. Abre el contacto hijo de la compañía cliente.
 2. Concédele acceso al portal mediante la función estándar de Odoo.
 3. Verifica que el contacto mantenga como padre la compañía que tiene el almacén asignado.
+4. En el mismo contacto, pulsa **Configurar clave del portal** e ingresa una clave de
+   al menos 6 caracteres.
+
+La clave pertenece al contacto, no a la compañía. Se almacena como un hash PBKDF2 y
+no puede recuperarse ni mostrarse; si se olvida, un usuario interno debe reemplazarla.
+Después de cinco intentos incorrectos queda bloqueada durante 15 minutos.
+
+### 4. Serie y número FEL
+
+La lista detecta los campos FEL de `infilefel` por sus nombres técnicos habituales y
+por su descripción. Si una instalación personalizada usa nombres diferentes, se pueden
+agregar en las listas `_PORTAL_FEL_SERIES_FIELDS` y `_PORTAL_FEL_NUMBER_FIELDS` de
+`models/account_move.py`.
 
 ## Flujo de inventario
 
@@ -69,7 +87,7 @@ Después, el módulo reserva y valida automáticamente cada transferencia de la 
 definida por el almacén, incluyendo flujos de una, dos o tres etapas.
 
 La operación completa es transaccional. Si una transferencia requiere intervención
-manual —por ejemplo, por inventario no reservable, lotes/series incompletos o una ruta
+manual —por ejemplo, por inventario no reservable o una ruta
 bloqueada— Odoo muestra el error y la solicitud permanece en borrador. No queda una
 orden de venta parcialmente procesada.
 
@@ -84,6 +102,8 @@ reduce inmediatamente.
 - Las solicitudes y los comprobantes también tienen reglas de registro para el grupo Portal.
 - Los archivos se validan por contenido, tipo MIME y tamaño.
 - Todas las operaciones `POST` conservan la protección CSRF de Odoo.
+- La confirmación del portal exige la clave personal del contacto, limita intentos y
+  bloquea temporalmente los ataques repetidos.
 - Los comprobantes no se publican ni se exponen mediante una ruta pública de descarga.
 
 ## Alcance contable
@@ -98,7 +118,9 @@ El addon incluye pruebas de modelo para:
 - asignación correcta del almacén a la orden de venta;
 - rechazo por inventario insuficiente;
 - aislamiento de solicitudes entre compañías cliente;
-- registro de comprobantes sin crear pagos contables.
+- registro de comprobantes sin crear pagos contables;
+- protección, hash y bloqueo temporal de la clave de confirmación;
+- comprobantes asociados a varias facturas y órdenes de venta.
 
 Para ejecutarlas en una instalación de Odoo 18:
 
