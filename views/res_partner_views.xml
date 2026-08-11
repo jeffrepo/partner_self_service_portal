@@ -10,8 +10,11 @@
                        invisible="not is_company"
                        options="{'no_create': True}"
                        groups="stock.group_stock_manager"/>
-                <field name="portal_confirmation_key_configured"
+                <field name="portal_user_type"
                        invisible="is_company"
+                       groups="base.group_user"/>
+                <field name="portal_confirmation_key_configured"
+                       invisible="is_company or portal_user_type != 'office'"
                        readonly="1"
                        groups="base.group_user"/>
                 <button name="action_open_portal_confirmation_key_wizard"
@@ -19,7 +22,7 @@
                         string="Configurar clave del portal"
                         class="btn-link"
                         icon="fa-key"
-                        invisible="is_company"
+                        invisible="is_company or portal_user_type != 'office'"
                         groups="base.group_user"/>
             </xpath>
         </field>

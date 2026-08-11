@@ -94,16 +94,3 @@ class AccountMove(models.Model):
             self._PORTAL_FEL_NUMBER_FIELDS,
             ("numero", "number", "folio"),
         )
-
-    def _is_portal_batch_payment_eligible(self):
-        self.ensure_one()
-        invoice = self.sudo()
-        return bool(
-            invoice.state == "posted"
-            and invoice.move_type == "out_invoice"
-            and not invoice.currency_id.is_zero(invoice.amount_residual)
-            and invoice.payment_state not in ("paid", "in_payment", "reversed")
-            and invoice.invoice_line_ids.sale_line_ids.order_id.filtered(
-                lambda order: order.state == "sale"
-            )
-        )

@@ -37,6 +37,26 @@ class PortalOrderRequest(models.Model):
         index=True,
         tracking=True,
     )
+    requested_by_name = fields.Char(
+        related="requested_by_id.name",
+        string="Solicitado por",
+        store=True,
+        readonly=True,
+    )
+    authorized_by_id = fields.Many2one(
+        comodel_name="res.partner",
+        string="Autorizado por",
+        readonly=True,
+        copy=False,
+        index=True,
+        tracking=True,
+    )
+    authorized_by_name = fields.Char(
+        related="authorized_by_id.name",
+        string="Autorizado por",
+        store=True,
+        readonly=True,
+    )
     warehouse_id = fields.Many2one(
         comodel_name="stock.warehouse",
         string="Almacén",
@@ -289,6 +309,12 @@ class PortalOrderRequest(models.Model):
             )
             request_record._check_stock_before_confirmation()
 
+            authorized_by = self.env["res.partner"].browse(
+                self.env.context.get("portal_authorized_by_partner_id")
+            ).exists()
+            if not authorized_by:
+                authorized_by = self.env.user.partner_id
+
             salesperson = request_record.partner_id.user_id
             if (
                 salesperson
@@ -335,6 +361,7 @@ class PortalOrderRequest(models.Model):
                 {
                     "state": "confirmed",
                     "confirmed_at": fields.Datetime.now(),
+                    "authorized_by_id": authorized_by.id,
                     "sale_order_id": sale_order.id,
                 }
             )
@@ -347,22 +374,23 @@ class PortalOrderRequest(models.Model):
             lambda user: user.active and not user.share
         )
         body = Markup(
-            "<p>La solicitud <strong>{request_name}</strong> fue confirmada desde el "
-            "portal por {requested_by}.</p>"
+            "<p>La solicitud <strong>{request_name}</strong>, creada por "
+            "{requested_by}, fue autorizada por {authorized_by}.</p>"
             "<p>Se creó y confirmó la orden de venta "
             "<strong>{sale_order}</strong> usando el almacén {warehouse}.</p>"
             "<p>Transferencias validadas automáticamente: "
             "<strong>{pickings}</strong>.</p>"
         ).format(
             request_name=escape(self.name),
-            requested_by=escape(self.requested_by_id.display_name),
+            requested_by=escape(self.requested_by_id.name),
+            authorized_by=escape(self.authorized_by_id.name),
             sale_order=escape(sale_order.name),
             warehouse=escape(self.warehouse_id.display_name),
             pickings=escape(", ".join(validated_pickings.mapped("name"))),
         )
         sale_order.message_post(
             body=body,
-            author_id=self.requested_by_id.id,
+            author_id=self.authorized_by_id.id,
             message_type="comment",
             subtype_xmlid="mail.mt_note",
         )
@@ -381,7 +409,7 @@ class PortalOrderRequest(models.Model):
                     "recipient_ids": [
                         Command.set(email_recipients.partner_id.ids)
                     ],
-                    "author_id": self.requested_by_id.id,
+                    "author_id": self.authorized_by_id.id,
                     "model": sale_order._name,
                     "res_id": sale_order.id,
                 }

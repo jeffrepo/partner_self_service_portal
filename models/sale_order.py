@@ -11,6 +11,36 @@ class SaleOrder(models.Model):
         readonly=True,
         index=True,
     )
+    portal_project_name = fields.Char(
+        related="portal_order_request_id.customer_reference",
+        string="Proyecto",
+        store=True,
+        readonly=True,
+    )
+    portal_requested_by_id = fields.Many2one(
+        related="portal_order_request_id.requested_by_id",
+        string="Solicitado por",
+        store=True,
+        readonly=True,
+    )
+    portal_requested_by_name = fields.Char(
+        related="portal_order_request_id.requested_by_id.name",
+        string="Solicitado por",
+        store=True,
+        readonly=True,
+    )
+    portal_authorized_by_id = fields.Many2one(
+        related="portal_order_request_id.authorized_by_id",
+        string="Autorizado por",
+        store=True,
+        readonly=True,
+    )
+    portal_authorized_by_name = fields.Char(
+        related="portal_order_request_id.authorized_by_id.name",
+        string="Autorizado por",
+        store=True,
+        readonly=True,
+    )
     portal_payment_proof_ids = fields.One2many(
         comodel_name="partner.portal.payment.proof",
         inverse_name="sale_order_id",

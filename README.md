@@ -4,7 +4,15 @@
 
 ## Funcionalidad
 
-- Conserva las páginas estándar de órdenes de venta y facturas de Odoo.
+- Permite clasificar cada contacto con acceso al portal como usuario **Proyecto**
+  o **Oficina**.
+- El usuario Proyecto solo ve solicitudes de compra: puede crearlas, editar sus
+  propios borradores y consultar si Oficina ya las confirmó, pero no puede
+  confirmarlas ni acceder a ventas, facturas, pagos o inventario.
+- El usuario Oficina conserva el portal completo y puede autorizar solicitudes.
+- Muestra el logo y nombre de la compañía cliente en el portal.
+- Conserva las páginas estándar de órdenes de venta y facturas de Odoo para
+  usuarios Oficina.
 - Muestra el estado del documento FEL en la lista y en el detalle de la factura.
   Cuando `infilefel` completa `fel_documento_certificado` con una URL HTTPS de
   Feel, permite abrirla; si está vacío, informa que la factura aún no ha sido
@@ -24,9 +32,13 @@
   - genera, reserva y valida automáticamente las operaciones de salida según la
     configuración nativa del almacén;
   - notifica por correo y actividad a los usuarios internos configurados.
+- Muestra Proyecto, Solicitado por y Autorizado por en las órdenes de venta creadas
+  por una solicitud del portal.
 - Añade el botón **Pagar** en las órdenes confirmadas del portal.
-- En la lista de facturas permite seleccionar varias facturas abiertas y enviar un
-  único comprobante para todas ellas.
+- En la lista de órdenes permite seleccionar varias ventas y enviar un único
+  comprobante para todas ellas, antes de facturar.
+- Permite imprimir un estado de cuenta PDF que contiene únicamente las órdenes
+  seleccionadas.
 - El botón acepta JPG, PNG, WEBP o PDF de hasta 10 MB y registra un comprobante separado.
 - El comprobante **no crea un `account.payment`**. Se adjunta al chatter de la orden y
   también al correo enviado a los usuarios internos configurados.
@@ -66,8 +78,11 @@ de correo estándar para conservar la trazabilidad y los reintentos normales del
 1. Abre el contacto hijo de la compañía cliente.
 2. Concédele acceso al portal mediante la función estándar de Odoo.
 3. Verifica que el contacto mantenga como padre la compañía que tiene el almacén asignado.
-4. En el mismo contacto, pulsa **Configurar clave del portal** e ingresa una clave de
-   al menos 6 caracteres.
+4. Selecciona **Tipo de usuario del portal**:
+   - **Proyecto** para crear y consultar solicitudes sin autorizarlas.
+   - **Oficina** para el acceso completo y la autorización de solicitudes.
+5. Para un usuario Oficina, pulsa **Configurar clave del portal** e ingresa una
+   clave de al menos 6 caracteres.
 
 La clave pertenece al contacto, no a la compañía. Se almacena como un hash PBKDF2 y
 no puede recuperarse ni mostrarse; si se olvida, un usuario interno debe reemplazarla.
@@ -100,6 +115,9 @@ reduce inmediatamente.
 - Cada consulta y escritura comprueba el `commercial_partner_id` del usuario.
 - Los controladores con `sudo()` siempre aplican primero un dominio explícito por compañía cliente.
 - Las solicitudes y los comprobantes también tienen reglas de registro para el grupo Portal.
+- Las reglas de registro impiden que un usuario Proyecto lea órdenes de venta,
+  líneas de venta, facturas, líneas de factura o comprobantes aunque intente entrar
+  por una URL directa.
 - Los archivos se validan por contenido, tipo MIME y tamaño.
 - Todas las operaciones `POST` conservan la protección CSRF de Odoo.
 - La confirmación del portal exige la clave personal del contacto, limita intentos y
@@ -120,7 +138,8 @@ El addon incluye pruebas de modelo para:
 - aislamiento de solicitudes entre compañías cliente;
 - registro de comprobantes sin crear pagos contables;
 - protección, hash y bloqueo temporal de la clave de confirmación;
-- comprobantes asociados a varias facturas y órdenes de venta.
+- comprobantes asociados a varias órdenes de venta;
+- visibilidad restringida de ventas y facturas para usuarios Proyecto.
 
 Para ejecutarlas en una instalación de Odoo 18:
 

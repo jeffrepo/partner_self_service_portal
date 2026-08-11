@@ -1,30 +1,38 @@
 /** @odoo-module **/
 
-function setupInvoiceBatchPayment() {
-    const invoiceCheckboxes = Array.from(
-        document.querySelectorAll(".o_portal_batch_invoice")
+function setupSaleOrderBatchActions() {
+    const orderCheckboxes = Array.from(
+        document.querySelectorAll(".o_portal_batch_order")
     );
-    const selectAll = document.getElementById("portalBatchPaymentSelectAll");
-    const paymentButton = document.getElementById("portalBatchPaymentButton");
-    const amountInput = document.getElementById("portal_batch_payment_amount");
+    const selectAll = document.getElementById("portalOrderSelectAll");
+    const paymentButton = document.getElementById("portalOrderBatchPaymentButton");
+    const statementButton = document.getElementById("portalOrderStatementButton");
+    const paymentForm = document.getElementById("portalOrderBatchPaymentForm");
+    const amountInput = document.getElementById("portal_order_batch_payment_amount");
 
-    if (!paymentButton) {
+    if (!paymentButton && !statementButton) {
         return;
     }
-    if (!invoiceCheckboxes.length) {
+    if (!orderCheckboxes.length) {
         if (selectAll) {
             selectAll.disabled = true;
         }
         return;
     }
 
+    const getSelected = () => orderCheckboxes.filter((checkbox) => checkbox.checked);
     const updateSelection = () => {
-        const selected = invoiceCheckboxes.filter((checkbox) => checkbox.checked);
-        paymentButton.disabled = !selected.length;
+        const selected = getSelected();
+        if (paymentButton) {
+            paymentButton.disabled = !selected.length;
+        }
+        if (statementButton) {
+            statementButton.disabled = !selected.length;
+        }
         if (selectAll) {
-            selectAll.checked = selected.length === invoiceCheckboxes.length;
+            selectAll.checked = selected.length === orderCheckboxes.length;
             selectAll.indeterminate = Boolean(
-                selected.length && selected.length < invoiceCheckboxes.length
+                selected.length && selected.length < orderCheckboxes.length
             );
         }
         if (amountInput) {
@@ -36,22 +44,39 @@ function setupInvoiceBatchPayment() {
         }
     };
 
-    for (const checkbox of invoiceCheckboxes) {
+    for (const checkbox of orderCheckboxes) {
         checkbox.addEventListener("change", updateSelection);
     }
     if (selectAll) {
         selectAll.addEventListener("change", () => {
-            for (const checkbox of invoiceCheckboxes) {
+            for (const checkbox of orderCheckboxes) {
                 checkbox.checked = selectAll.checked;
             }
             updateSelection();
+        });
+    }
+    if (paymentForm) {
+        paymentForm.addEventListener("submit", () => {
+            for (const previousInput of paymentForm.querySelectorAll(
+                ".o_portal_selected_order_id"
+            )) {
+                previousInput.remove();
+            }
+            for (const checkbox of getSelected()) {
+                const input = document.createElement("input");
+                input.type = "hidden";
+                input.name = "order_ids";
+                input.value = checkbox.value;
+                input.className = "o_portal_selected_order_id";
+                paymentForm.appendChild(input);
+            }
         });
     }
     updateSelection();
 }
 
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", setupInvoiceBatchPayment);
+    document.addEventListener("DOMContentLoaded", setupSaleOrderBatchActions);
 } else {
-    setupInvoiceBatchPayment();
+    setupSaleOrderBatchActions();
 }

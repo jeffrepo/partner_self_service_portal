@@ -24,6 +24,15 @@ ALLOWED_PAYMENT_PROOF_MIMETYPES = {
 }
 
 
+def _is_project_portal_user():
+    user = request.env.user
+    return bool(
+        not user._is_public()
+        and user.share
+        and user.partner_id.portal_user_type == "project"
+    )
+
+
 class PartnerSelfServicePortal(CustomerPortal):
     def _get_customer_company_partner(self):
         partner = request.env.user.partner_id
@@ -39,6 +48,7 @@ class PartnerSelfServicePortal(CustomerPortal):
     def _get_customer_portal_context(self):
         partner = request.env.user.partner_id
         company_partner = self._get_customer_company_partner()
+        is_project_user = _is_project_portal_user()
         warehouse = (
             company_partner.sudo().portal_warehouse_id
             if company_partner
@@ -50,6 +60,8 @@ class PartnerSelfServicePortal(CustomerPortal):
             "contact_partner": partner,
             "company_partner": company_partner,
             "warehouse": warehouse,
+            "is_project_user": is_project_user,
+            "is_office_user": not is_project_user,
         }
 
     def _get_request_domain(self, company_partner):
@@ -206,6 +218,8 @@ class PartnerSelfServicePortal(CustomerPortal):
         website=True,
     )
     def portal_inventory(self, page=1, search=None, **kwargs):
+        if _is_project_portal_user():
+            return request.redirect("/my/purchase-requests")
         portal_context = self._get_customer_portal_context()
         values = self._base_page_values("portal_inventory", portal_context)
         warehouse = portal_context["warehouse"]
@@ -245,6 +259,8 @@ class PartnerSelfServicePortal(CustomerPortal):
         website=True,
     )
     def portal_payments(self, page=1, **kwargs):
+        if _is_project_portal_user():
+            return request.redirect("/my/purchase-requests")
         portal_context = self._get_customer_portal_context()
         values = self._base_page_values("portal_payments", portal_context)
         company_partner = portal_context["company_partner"]
@@ -353,6 +369,7 @@ class PartnerSelfServicePortal(CustomerPortal):
                 "purchase_request": request_record,
                 "created": kwargs.get("created"),
                 "confirmed": kwargs.get("confirmed"),
+                "authorization_required": kwargs.get("authorization") == "required",
             }
         )
         return request.render(
@@ -568,7 +585,14 @@ class PartnerSelfServicePortal(CustomerPortal):
         request_record = self._get_portal_request(
             request_id, portal_context["company_partner"]
         )
-        if not request_record or request_record.state != "draft":
+        if (
+            not request_record
+            or request_record.state != "draft"
+            or (
+                _is_project_portal_user()
+                and request_record.requested_by_id != request.env.user.partner_id
+            )
+        ):
             return request.redirect("/my/purchase-requests")
 
         if request.httprequest.method == "POST":
@@ -619,6 +643,10 @@ class PartnerSelfServicePortal(CustomerPortal):
         )
         if not request_record:
             return request.redirect("/my/purchase-requests")
+        if _is_project_portal_user():
+            return request.redirect(
+                f"/my/purchase-requests/{request_record.id}?authorization=required"
+            )
         if request_record.state != "draft":
             return request.redirect(
                 f"/my/purchase-requests/{request_record.id}"
@@ -638,7 +666,9 @@ class PartnerSelfServicePortal(CustomerPortal):
 
         try:
             with request.env.cr.savepoint():
-                request_record.action_confirm()
+                request_record.with_context(
+                    portal_authorized_by_partner_id=request.env.user.partner_id.id
+                ).action_confirm()
         except (UserError, ValidationError) as error:
             return self._render_purchase_request_confirmation_error(
                 portal_context,
@@ -738,6 +768,8 @@ class PartnerSelfServicePortal(CustomerPortal):
         methods=["POST"],
     )
     def portal_order_payment_proof(self, order_id, **post):
+        if _is_project_portal_user():
+            return request.redirect("/my/purchase-requests")
         company_partner = self._get_customer_company_partner()
         sale_order = self._get_portal_sale_order(order_id, company_partner)
         if not sale_order:
@@ -757,67 +789,94 @@ class PartnerSelfServicePortal(CustomerPortal):
             f"{sale_order.get_portal_url()}?proof_submitted=1"
         )
 
+    def _get_selected_portal_sale_orders(self):
+        company_partner = self._get_customer_company_partner()
+        if not company_partner:
+            return request.env["sale.order"], "access"
+        try:
+            order_ids = list(
+                dict.fromkeys(
+                    int(order_id)
+                    for order_id in request.httprequest.form.getlist("order_ids")
+                )
+            )
+        except (TypeError, ValueError):
+            order_ids = []
+        if not order_ids or len(order_ids) > 100:
+            return request.env["sale.order"], "selection"
+
+        sale_orders = request.env["sale.order"].sudo().search(
+            [
+                ("id", "in", order_ids),
+                ("partner_id", "child_of", company_partner.id),
+                ("state", "=", "sale"),
+            ]
+        )
+        if len(sale_orders) != len(order_ids):
+            return request.env["sale.order"], "selection"
+        if len(sale_orders.company_id) != 1 or len(sale_orders.currency_id) != 1:
+            return request.env["sale.order"], "currency"
+        return sale_orders, False
+
     @http.route(
-        "/my/invoices/payment-proof",
+        "/my/orders/payment-proof",
         type="http",
         auth="user",
         website=True,
         methods=["POST"],
     )
-    def portal_invoice_batch_payment_proof(self, **post):
-        company_partner = self._get_customer_company_partner()
-        if not company_partner:
-            return request.redirect("/my/invoices?batch_proof_error=access")
-        try:
-            invoice_ids = list(
-                dict.fromkeys(
-                    int(invoice_id)
-                    for invoice_id in request.httprequest.form.getlist("invoice_ids")
-                )
+    def portal_order_batch_payment_proof(self, **post):
+        if _is_project_portal_user():
+            return request.redirect("/my/purchase-requests")
+        sale_orders, selection_error = self._get_selected_portal_sale_orders()
+        if selection_error:
+            return request.redirect(
+                f"/my/orders?batch_proof_error={selection_error}"
             )
-        except (TypeError, ValueError):
-            invoice_ids = []
-        if not invoice_ids or len(invoice_ids) > 100:
-            return request.redirect("/my/invoices?batch_proof_error=selection")
-
-        invoices = request.env["account.move"].sudo().search(
-            [
-                ("id", "in", invoice_ids),
-                ("partner_id", "child_of", company_partner.id),
-                ("state", "=", "posted"),
-                ("move_type", "=", "out_invoice"),
-                ("amount_residual", "!=", 0),
-            ]
-        )
-        if len(invoices) != len(invoice_ids):
-            return request.redirect("/my/invoices?batch_proof_error=selection")
-
-        sale_orders = invoices.invoice_line_ids.sale_line_ids.order_id.filtered(
-            lambda order: order.state == "sale"
-        )
-        if not sale_orders or any(
-            not invoice.invoice_line_ids.sale_line_ids.order_id & sale_orders
-            for invoice in invoices
-        ):
-            return request.redirect("/my/invoices?batch_proof_error=orders")
-        if len(sale_orders.company_id) != 1 or len(sale_orders.currency_id) != 1:
-            return request.redirect("/my/invoices?batch_proof_error=currency")
-        if any(
-            invoice.company_id != sale_orders.company_id
-            or invoice.currency_id != sale_orders.currency_id
-            for invoice in invoices
-        ):
-            return request.redirect("/my/invoices?batch_proof_error=currency")
 
         upload_values, error_code = self._prepare_payment_proof_upload(post)
         if error_code:
             return request.redirect(
-                f"/my/invoices?batch_proof_error={error_code}"
+                f"/my/orders?batch_proof_error={error_code}"
             )
         self._create_portal_payment_proof(
-            company_partner,
+            self._get_customer_company_partner(),
             sale_orders,
             upload_values,
-            invoices=invoices,
         )
-        return request.redirect("/my/invoices?batch_proof_submitted=1")
+        return request.redirect("/my/orders?batch_proof_submitted=1")
+
+    @http.route(
+        "/my/orders/account-statement",
+        type="http",
+        auth="user",
+        website=True,
+        methods=["POST"],
+    )
+    def portal_order_account_statement(self, **post):
+        if _is_project_portal_user():
+            return request.redirect("/my/purchase-requests")
+        sale_orders, selection_error = self._get_selected_portal_sale_orders()
+        if selection_error:
+            return request.redirect(
+                f"/my/orders?statement_error={selection_error}"
+            )
+        pdf_content, _content_type = (
+            request.env["ir.actions.report"]
+            .sudo()
+            ._render_qweb_pdf(
+                "partner_self_service_portal.action_report_portal_sale_order_statement",
+                res_ids=sale_orders.ids,
+            )
+        )
+        customer_name = secure_filename(
+            sale_orders[0].partner_id.commercial_partner_id.name
+        )
+        filename = f"Estado-de-cuenta-{customer_name or 'cliente'}.pdf"
+        return request.make_response(
+            pdf_content,
+            headers=[
+                ("Content-Type", "application/pdf"),
+                ("Content-Disposition", content_disposition(filename)),
+            ],
+        )

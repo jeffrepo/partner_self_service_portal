@@ -141,7 +141,8 @@
     <template id="portal_invoice_list_batch_payment"
               name="Portal invoice batch payment"
               inherit_id="account.portal_my_invoices"
-              priority="45">
+              priority="45"
+              active="False">
         <xpath expr="//t[@t-if='invoices'][@t-call='portal.portal_table']" position="before">
             <div t-if="request.params.get('batch_proof_submitted')"
                  class="alert alert-success alert-dismissible d-print-none"
@@ -323,6 +324,25 @@
         </xpath>
     </template>
 
+    <template id="portal_invoice_list_fel_identifiers"
+              name="Serie y número FEL en lista de facturas"
+              inherit_id="account.portal_my_invoices"
+              priority="46">
+        <xpath expr="//th[@name='invoice_number']" position="after">
+            <th name="fel_series" class="d-none d-lg-table-cell">Serie FEL</th>
+            <th name="fel_number" class="d-none d-lg-table-cell">Número FEL</th>
+        </xpath>
+        <xpath expr="//tbody/t/tr/td[a[@t-att-href='invoice.get_portal_url()']]"
+               position="after">
+            <td name="invoice_fel_series" class="d-none d-lg-table-cell">
+                <span t-out="invoice._get_portal_fel_series() or '-'"/>
+            </td>
+            <td name="invoice_fel_number" class="d-none d-lg-table-cell">
+                <span t-out="invoice._get_portal_fel_number() or '-'"/>
+            </td>
+        </xpath>
+    </template>
+
     <template id="portal_breadcrumbs_partner_self_service"
               name="Navegación del portal de autoservicio"
               inherit_id="portal.portal_breadcrumbs"
@@ -358,7 +378,8 @@
             <t t-set="portal_client_category_enable" t-value="True"/>
         </xpath>
         <div id="portal_client_category" position="inside">
-            <t t-call="portal.portal_docs_entry">
+            <t t-if="request.env.user.partner_id.portal_user_type != 'project'"
+               t-call="portal.portal_docs_entry">
                 <t t-set="icon" t-value="'/stock/static/description/icon.png'"/>
                 <t t-set="title">Inventario disponible</t>
                 <t t-set="url" t-value="'/my/inventory'"/>
@@ -370,11 +391,12 @@
                 <t t-set="icon" t-value="'/sale/static/src/img/bag.svg'"/>
                 <t t-set="title">Solicitudes de compra</t>
                 <t t-set="url" t-value="'/my/purchase-requests'"/>
-                <t t-set="text">Crea, revisa y confirma solicitudes</t>
+                <t t-set="text">Crea y revisa solicitudes de tu compañía</t>
                 <t t-set="placeholder_count" t-value="'purchase_request_count'"/>
                 <t t-set="config_card" t-value="True"/>
             </t>
-            <t t-call="portal.portal_docs_entry">
+            <t t-if="request.env.user.partner_id.portal_user_type != 'project'"
+               t-call="portal.portal_docs_entry">
                 <t t-set="icon" t-value="'/account/static/src/img/Bill.svg'"/>
                 <t t-set="title">Pagos registrados</t>
                 <t t-set="url" t-value="'/my/payments'"/>
@@ -507,6 +529,7 @@
                     <tr>
                         <th>Correlativo</th>
                         <th>Fecha</th>
+                        <th>Proyecto</th>
                         <th>Solicitado por</th>
                         <th class="text-end">Cantidad</th>
                         <th>Orden de venta</th>
@@ -521,13 +544,16 @@
                             </a>
                         </td>
                         <td><span t-field="purchase_request.create_date" t-options="{'widget': 'date'}"/></td>
-                        <td><span t-out="purchase_request.requested_by_id.display_name"/></td>
+                        <td><span t-out="purchase_request.customer_reference or '-'"/></td>
+                        <td><span t-out="purchase_request.requested_by_id.name"/></td>
                         <td class="text-end"><span t-out="purchase_request.total_requested_qty"/></td>
                         <td>
-                            <a t-if="purchase_request.sale_order_id"
+                            <a t-if="purchase_request.sale_order_id and is_office_user"
                                t-att-href="purchase_request.sale_order_id.get_portal_url()">
                                 <span t-out="purchase_request.sale_order_id.name"/>
                             </a>
+                            <span t-elif="purchase_request.sale_order_id"
+                                  t-out="purchase_request.sale_order_id.name"/>
                             <span t-else="">-</span>
                         </td>
                         <td>
@@ -552,6 +578,10 @@
             <div t-if="confirmation_error" class="alert alert-danger" role="alert">
                 <span t-out="confirmation_error"/>
             </div>
+            <div t-if="authorization_required" class="alert alert-warning" role="alert">
+                Tu usuario de proyecto puede crear y consultar solicitudes, pero solo un
+                usuario de oficina puede confirmarlas.
+            </div>
 
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
                 <div>
@@ -563,17 +593,19 @@
                        class="btn btn-outline-secondary">
                         <i class="fa fa-print me-1"/> Imprimir
                     </a>
-                    <a t-if="purchase_request.state == 'draft'"
+                    <a t-if="purchase_request.state == 'draft'
+                             and (is_office_user
+                                  or purchase_request.requested_by_id == contact_partner)"
                        t-attf-href="/my/purchase-requests/{{ purchase_request.id }}/edit"
                        class="btn btn-outline-primary">Editar</a>
-                    <button t-if="purchase_request.state == 'draft'"
+                    <button t-if="purchase_request.state == 'draft' and is_office_user"
                             type="button"
                             class="btn btn-primary"
                             data-bs-toggle="modal"
                             data-bs-target="#portalConfirmationKeyModal">
                         Confirmar
                     </button>
-                    <a t-if="purchase_request.sale_order_id"
+                    <a t-if="purchase_request.sale_order_id and is_office_user"
                        t-att-href="purchase_request.sale_order_id.get_portal_url()"
                        class="btn btn-success">Ver orden de venta</a>
                 </div>
@@ -585,7 +617,7 @@
                         <dt class="col-sm-5">Compañía</dt>
                         <dd class="col-sm-7" t-out="purchase_request.partner_id.display_name"/>
                         <dt class="col-sm-5">Solicitado por</dt>
-                        <dd class="col-sm-7" t-out="purchase_request.requested_by_id.display_name"/>
+                        <dd class="col-sm-7" t-out="purchase_request.requested_by_id.name"/>
                         <dt class="col-sm-5">Proyecto</dt>
                         <dd class="col-sm-7" t-out="purchase_request.customer_reference or '-'"/>
                     </dl>
@@ -604,6 +636,11 @@
                         <dd t-if="purchase_request.confirmed_at" class="col-sm-7">
                             <span t-field="purchase_request.confirmed_at"/>
                         </dd>
+                        <dt t-if="purchase_request.authorized_by_id" class="col-sm-5">
+                            Autorizado por
+                        </dt>
+                        <dd t-if="purchase_request.authorized_by_id" class="col-sm-7"
+                            t-out="purchase_request.authorized_by_id.name"/>
                     </dl>
                 </div>
             </div>
@@ -631,7 +668,7 @@
                 <div class="card-body"><span t-out="purchase_request.note"/></div>
             </div>
 
-            <div t-if="purchase_request.state == 'draft'"
+            <div t-if="purchase_request.state == 'draft' and is_office_user"
                  class="modal fade"
                  id="portalConfirmationKeyModal"
                  tabindex="-1"
@@ -765,6 +802,254 @@
         </t>
     </template>
 
+    <template id="portal_customer_brand"
+              name="Identidad de la compañía cliente en el portal"
+              inherit_id="portal.portal_layout"
+              priority="60">
+        <xpath expr="//div[@id='wrap']/div[hasclass('container')]/t[1]" position="before">
+            <t t-if="not request.env.user._is_public() and request.env.user.share">
+                <t t-set="portal_customer_company"
+                   t-value="request.env.user.partner_id.commercial_partner_id.sudo()"/>
+                <div t-if="portal_customer_company != request.env.user.partner_id"
+                     class="o_portal_customer_brand d-flex align-items-center gap-3 py-3 mb-2 border-bottom">
+                    <img t-if="portal_customer_company.image_128"
+                         t-att-src="image_data_uri(portal_customer_company.image_128)"
+                         t-att-alt="portal_customer_company.name"
+                         class="rounded object-fit-contain"
+                         style="width: 64px; height: 64px;"/>
+                    <div>
+                        <small class="text-muted d-block">Portal de la compañía</small>
+                        <strong class="fs-5" t-out="portal_customer_company.name"/>
+                    </div>
+                </div>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="portal_my_home_project_visibility"
+              name="Accesos limitados para usuarios de proyecto"
+              inherit_id="portal.portal_my_home"
+              priority="100">
+        <xpath expr="//t[@t-call='portal.portal_docs_entry'][t[@t-set='url' and contains(@t-value, '/my/orders')]]"
+               position="attributes">
+            <attribute name="t-if">request.env.user.partner_id.portal_user_type != 'project'</attribute>
+        </xpath>
+        <xpath expr="//t[@t-call='portal.portal_docs_entry'][t[@t-set='url' and contains(@t-value, '/my/quotes')]]"
+               position="attributes">
+            <attribute name="t-if">request.env.user.partner_id.portal_user_type != 'project'</attribute>
+        </xpath>
+        <xpath expr="//t[@t-call='portal.portal_docs_entry'][t[@t-set='url' and contains(@t-value, '/my/invoices')]]"
+               position="attributes">
+            <attribute name="t-if">request.env.user.partner_id.portal_user_type != 'project'</attribute>
+        </xpath>
+        <xpath expr="//t[@t-call='portal.portal_docs_entry'][t[@t-set='url' and contains(@t-value, '/my/security')]]"
+               position="attributes">
+            <attribute name="t-if">request.env.user.partner_id.portal_user_type != 'project'</attribute>
+        </xpath>
+    </template>
+
+    <template id="portal_sale_order_list_self_service"
+              name="Selección y trazabilidad de órdenes de venta"
+              inherit_id="sale.portal_my_orders"
+              priority="60">
+        <xpath expr="//t[@t-if='orders'][@t-call='portal.portal_table']" position="before">
+            <div t-if="request.params.get('batch_proof_submitted')"
+                 class="alert alert-success alert-dismissible d-print-none"
+                 role="status">
+                <button type="button" class="btn-close" data-bs-dismiss="alert"
+                        aria-label="Cerrar"/>
+                El comprobante fue recibido para las órdenes seleccionadas. Contabilidad
+                todavía debe revisarlo y registrar el pago.
+            </div>
+            <div t-if="request.params.get('batch_proof_error') or request.params.get('statement_error')"
+                 class="alert alert-danger alert-dismissible d-print-none"
+                 role="alert">
+                <button type="button" class="btn-close" data-bs-dismiss="alert"
+                        aria-label="Cerrar"/>
+                <t t-set="portal_order_error"
+                   t-value="request.params.get('batch_proof_error') or request.params.get('statement_error')"/>
+                <t t-if="portal_order_error == 'selection'">
+                    Selecciona al menos una orden de venta válida.
+                </t>
+                <t t-elif="portal_order_error == 'currency'">
+                    Las órdenes seleccionadas deben usar la misma compañía y moneda.
+                </t>
+                <t t-elif="portal_order_error == 'missing'">Adjunta un comprobante.</t>
+                <t t-elif="portal_order_error == 'size'">
+                    El archivo supera el límite de 10 MB.
+                </t>
+                <t t-elif="portal_order_error == 'type'">
+                    Usa una imagen JPG, PNG, WEBP o un archivo PDF.
+                </t>
+                <t t-else="">Revisa el monto, la fecha y las órdenes seleccionadas.</t>
+            </div>
+            <div t-if="orders and request.env.user.partner_id.portal_user_type != 'project'"
+                 class="d-flex flex-wrap justify-content-end gap-2 mb-3 d-print-none">
+                <form id="portalOrderStatementForm"
+                      method="post"
+                      action="/my/orders/account-statement"
+                      target="_blank">
+                    <input type="hidden" name="csrf_token"
+                           t-att-value="request.csrf_token()"/>
+                    <button id="portalOrderStatementButton"
+                            type="submit"
+                            class="btn btn-outline-primary"
+                            disabled="disabled">
+                        <i class="fa fa-file-pdf-o me-1"/> Imprimir estado de cuenta
+                    </button>
+                </form>
+                <button id="portalOrderBatchPaymentButton"
+                        type="button"
+                        class="btn btn-success"
+                        disabled="disabled"
+                        data-bs-toggle="modal"
+                        data-bs-target="#portalOrderBatchPaymentModal">
+                    <i class="fa fa-credit-card me-1"/> Pagar seleccionadas
+                </button>
+            </div>
+        </xpath>
+
+        <xpath expr="//thead/tr/th[1]" position="before">
+            <th t-if="request.env.user.partner_id.portal_user_type != 'project'"
+                name="batch_order_selection"
+                class="d-print-none">
+                <input id="portalOrderSelectAll"
+                       type="checkbox"
+                       class="form-check-input"
+                       title="Seleccionar todas las órdenes"
+                       aria-label="Seleccionar todas las órdenes"/>
+            </th>
+        </xpath>
+        <xpath expr="//thead/tr/th[1]" position="after">
+            <th class="d-none d-lg-table-cell">Proyecto</th>
+            <th class="d-none d-lg-table-cell">Solicitado por</th>
+            <th class="d-none d-lg-table-cell">Autorizado por</th>
+        </xpath>
+        <xpath expr="//t[@t-foreach='orders']/tr/td[a[@t-att-href='order.get_portal_url()']]"
+               position="before">
+            <td t-if="request.env.user.partner_id.portal_user_type != 'project'"
+                name="batch_order_selection"
+                class="d-print-none">
+                <input type="checkbox"
+                       name="order_ids"
+                       t-att-value="order.id"
+                       t-att-data-amount="order.amount_total"
+                       form="portalOrderStatementForm"
+                       class="form-check-input o_portal_batch_order"
+                       t-att-aria-label="'Seleccionar orden %s' % order.name"/>
+            </td>
+        </xpath>
+        <xpath expr="//t[@t-foreach='orders']/tr/td[a[@t-att-href='order.get_portal_url()']]"
+               position="after">
+            <td class="d-none d-lg-table-cell">
+                <span t-out="order.portal_project_name or '-'"/>
+            </td>
+            <td class="d-none d-lg-table-cell">
+                <span t-out="order.portal_requested_by_id.name or '-'"/>
+            </td>
+            <td class="d-none d-lg-table-cell">
+                <span t-out="order.portal_authorized_by_id.name or '-'"/>
+            </td>
+        </xpath>
+
+        <xpath expr="//t[@t-if='orders'][@t-call='portal.portal_table']" position="after">
+            <div t-if="request.env.user.partner_id.portal_user_type != 'project'"
+                 class="modal fade"
+                 id="portalOrderBatchPaymentModal"
+                 tabindex="-1"
+                 aria-labelledby="portalOrderBatchPaymentModalLabel"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form id="portalOrderBatchPaymentForm"
+                              method="post"
+                              enctype="multipart/form-data"
+                              action="/my/orders/payment-proof">
+                            <input type="hidden" name="csrf_token"
+                                   t-att-value="request.csrf_token()"/>
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="portalOrderBatchPaymentModalLabel">
+                                    Reportar pago de órdenes
+                                </h5>
+                                <button type="button" class="btn-close"
+                                        data-bs-dismiss="modal" aria-label="Cerrar"/>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted">
+                                    El comprobante se asociará a todas las órdenes seleccionadas.
+                                    Esto no creará un pago contable.
+                                </p>
+                                <div class="mb-3">
+                                    <label for="portal_order_batch_payment_amount"
+                                           class="form-label">Monto reportado</label>
+                                    <input id="portal_order_batch_payment_amount"
+                                           name="amount" type="number" min="0.01" step="0.01"
+                                           required="required" class="form-control"/>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="portal_order_batch_payment_date"
+                                           class="form-label">Fecha del pago</label>
+                                    <input id="portal_order_batch_payment_date"
+                                           name="payment_date" type="date" required="required"
+                                           class="form-control"/>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="portal_order_batch_payment_file"
+                                           class="form-label">Comprobante</label>
+                                    <input id="portal_order_batch_payment_file"
+                                           name="payment_proof" type="file"
+                                           accept="image/jpeg,image/png,image/webp,application/pdf"
+                                           required="required" class="form-control"/>
+                                    <div class="form-text">JPG, PNG, WEBP o PDF; máximo 10 MB.</div>
+                                </div>
+                                <div>
+                                    <label for="portal_order_batch_payment_note"
+                                           class="form-label">Notas</label>
+                                    <textarea id="portal_order_batch_payment_note"
+                                              name="note" maxlength="2000" rows="3"
+                                              class="form-control"/>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary"
+                                        data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-success">
+                                    Enviar comprobante
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+    <template id="portal_sale_order_traceability"
+              name="Trazabilidad de solicitud en orden de venta"
+              inherit_id="sale.sale_order_portal_content"
+              priority="60">
+        <xpath expr="//tbody[@id='sale_info_table']" position="inside">
+            <tr t-if="sale_order.portal_order_request_id">
+                <th class="ps-0 pb-0">Proyecto:</th>
+                <td class="w-100 pb-0 text-wrap">
+                    <span t-out="sale_order.portal_project_name or '-'"/>
+                </td>
+            </tr>
+            <tr t-if="sale_order.portal_order_request_id">
+                <th class="ps-0 pb-0">Solicitado por:</th>
+                <td class="w-100 pb-0 text-wrap">
+                    <span t-out="sale_order.portal_requested_by_id.name or '-'"/>
+                </td>
+            </tr>
+            <tr t-if="sale_order.portal_order_request_id">
+                <th class="ps-0 pb-0">Autorizado por:</th>
+                <td class="w-100 pb-0 text-wrap">
+                    <span t-out="sale_order.portal_authorized_by_id.name or '-'"/>
+                </td>
+            </tr>
+        </xpath>
+    </template>
+
     <template id="sale_order_portal_payment_proof"
               name="Comprobante de pago en orden de venta"
               inherit_id="sale.sale_order_portal_template"
@@ -772,6 +1057,7 @@
         <xpath expr="//div[@id='sale_order_sidebar_button']" position="inside">
             <a t-if="sale_order.state == 'sale'
                      and not request.env.user._is_public()
+                     and request.env.user.partner_id.portal_user_type != 'project'
                      and sale_order.partner_id.commercial_partner_id == request.env.user.partner_id.commercial_partner_id"
                role="button" class="btn btn-success"
                data-bs-toggle="modal" data-bs-target="#portalPaymentProofModal" href="#">
@@ -795,6 +1081,7 @@
 
             <div t-if="sale_order.state == 'sale'
                        and not request.env.user._is_public()
+                       and request.env.user.partner_id.portal_user_type != 'project'
                        and sale_order.partner_id.commercial_partner_id == request.env.user.partner_id.commercial_partner_id"
                  class="modal fade" id="portalPaymentProofModal" tabindex="-1"
                  aria-labelledby="portalPaymentProofModalLabel" aria-hidden="true">

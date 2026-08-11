@@ -1,7 +1,7 @@
 {
     "name": "Partner Self-Service Portal",
     "summary": "Portal de clientes con inventario, solicitudes y comprobantes de pago",
-    "version": "18.0.2.0.0",
+    "version": "18.0.3.0.0",
     "category": "Sales/Sales",
     "author": "Jeffrepo",
     "license": "LGPL-3",
@@ -18,6 +18,7 @@
         "security/portal_security.xml",
         "data/ir_sequence_data.xml",
         "report/portal_order_request_report.xml",
+        "report/portal_sale_order_statement_report.xml",
         "views/portal_confirmation_key_wizard_views.xml",
         "views/res_partner_views.xml",
         "views/res_config_settings_views.xml",

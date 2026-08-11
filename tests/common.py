@@ -24,6 +24,7 @@ class PartnerSelfServicePortalCommon(TransactionCase):
                 "name": "Portal Customer User",
                 "email": "portal.customer@example.com",
                 "parent_id": cls.customer_company.id,
+                "portal_user_type": "office",
             }
         )
         cls.portal_user = new_test_user(

@@ -10,7 +10,9 @@ class TestPortalOrderRequest(PartnerSelfServicePortalCommon):
     def test_confirmation_creates_confirmed_sale_from_assigned_warehouse(self):
         request_record = self._create_request(quantity=2.0)
 
-        request_record.action_confirm()
+        request_record.with_context(
+            portal_authorized_by_partner_id=self.customer_contact.id
+        ).action_confirm()
 
         self.assertEqual(request_record.state, "confirmed")
         self.assertTrue(request_record.name.startswith("SPR/"))
@@ -21,6 +23,25 @@ class TestPortalOrderRequest(PartnerSelfServicePortalCommon):
         self.assertEqual(
             request_record.sale_order_id.portal_order_request_id,
             request_record,
+        )
+        self.assertEqual(request_record.authorized_by_id, self.customer_contact)
+        self.assertEqual(request_record.requested_by_name, "Portal Customer User")
+        self.assertEqual(request_record.authorized_by_name, "Portal Customer User")
+        self.assertEqual(
+            request_record.sale_order_id.portal_requested_by_id,
+            self.customer_contact,
+        )
+        self.assertEqual(
+            request_record.sale_order_id.portal_authorized_by_id,
+            self.customer_contact,
+        )
+        self.assertEqual(
+            request_record.sale_order_id.portal_requested_by_name,
+            "Portal Customer User",
+        )
+        self.assertEqual(
+            request_record.sale_order_id.portal_authorized_by_name,
+            "Portal Customer User",
         )
         self.assertEqual(
             request_record.sale_order_id.order_line.product_uom_qty,

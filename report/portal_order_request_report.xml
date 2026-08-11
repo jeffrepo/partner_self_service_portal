@@ -36,7 +36,7 @@
                                 </p>
                                 <p class="mb-1">
                                     <strong>Solicitado por:</strong>
-                                    <span t-out="doc.requested_by_id.display_name"/>
+                                    <span t-out="doc.requested_by_id.name"/>
                                 </p>
                                 <p class="mb-1">
                                     <strong>Proyecto:</strong>
@@ -55,6 +55,10 @@
                                 <p t-if="doc.confirmed_at" class="mb-1">
                                     <strong>Confirmada:</strong>
                                     <span t-field="doc.confirmed_at"/>
+                                </p>
+                                <p t-if="doc.authorized_by_id" class="mb-1">
+                                    <strong>Autorizado por:</strong>
+                                    <span t-out="doc.authorized_by_id.name"/>
                                 </p>
                                 <p t-if="doc.sale_order_id" class="mb-1">
                                     <strong>Orden de venta:</strong>

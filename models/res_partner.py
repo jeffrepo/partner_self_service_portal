@@ -24,6 +24,20 @@ class ResPartner(models.Model):
             "asociados a contactos de esta compañía."
         ),
     )
+    portal_user_type = fields.Selection(
+        selection=[
+            ("project", "Proyecto"),
+            ("office", "Oficina"),
+        ],
+        string="Tipo de usuario del portal",
+        required=True,
+        default="office",
+        copy=False,
+        help=(
+            "Proyecto solo puede crear y consultar solicitudes de compra. "
+            "Oficina conserva el acceso completo y puede autorizarlas."
+        ),
+    )
     portal_confirmation_key_hash = fields.Char(
         string="Hash de la clave de confirmación del portal",
         copy=False,

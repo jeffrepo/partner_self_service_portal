@@ -8,6 +8,7 @@
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="requested_by_id"/>
+                <field name="authorized_by_id"/>
                 <field name="sale_order_id"/>
                 <filter name="draft" string="Borradores" domain="[('state', '=', 'draft')]"/>
                 <filter name="confirmed" string="Confirmadas" domain="[('state', '=', 'confirmed')]"/>
@@ -27,7 +28,9 @@
                 <field name="name" decoration-bf="1"/>
                 <field name="create_date"/>
                 <field name="partner_id"/>
-                <field name="requested_by_id" optional="show"/>
+                <field name="requested_by_name" optional="show"/>
+                <field name="customer_reference" optional="show"/>
+                <field name="authorized_by_name" optional="show"/>
                 <field name="warehouse_id"/>
                 <field name="total_requested_qty" sum="Cantidad total"/>
                 <field name="sale_order_id" optional="show"/>
@@ -67,6 +70,7 @@
                         <group>
                             <field name="partner_id"/>
                             <field name="requested_by_id"/>
+                            <field name="authorized_by_id" invisible="not authorized_by_id"/>
                             <field name="warehouse_id"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>

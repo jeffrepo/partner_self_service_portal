@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_report_portal_sale_order_statement" model="ir.actions.report">
+        <field name="name">Estado de cuenta de órdenes seleccionadas</field>
+        <field name="model">sale.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">partner_self_service_portal.report_portal_sale_order_statement</field>
+        <field name="report_file">partner_self_service_portal.report_portal_sale_order_statement</field>
+        <field name="print_report_name">'Estado de cuenta'</field>
+    </record>
+
+    <template id="report_portal_sale_order_statement">
+        <t t-call="web.html_container">
+            <t t-if="docs">
+                <t t-set="o" t-value="docs[0]"/>
+                <t t-set="customer" t-value="o.partner_id.commercial_partner_id"/>
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <div class="d-flex align-items-center mb-4">
+                            <img t-if="customer.image_128"
+                                 t-att-src="image_data_uri(customer.image_128)"
+                                 t-att-alt="customer.name"
+                                 style="max-width: 90px; max-height: 70px; margin-right: 16px;"/>
+                            <div>
+                                <h2 class="mb-1">Estado de cuenta</h2>
+                                <h4 class="mb-0" t-out="customer.name"/>
+                            </div>
+                        </div>
+
+                        <p class="text-muted">
+                            Este documento incluye únicamente las órdenes de venta
+                            seleccionadas en el portal.
+                        </p>
+
+                        <table class="table table-sm table-bordered mt-4">
+                            <thead>
+                                <tr>
+                                    <th>Orden</th>
+                                    <th>Fecha</th>
+                                    <th>Proyecto</th>
+                                    <th>Solicitado por</th>
+                                    <th>Autorizado por</th>
+                                    <th>Pago reportado</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="docs" t-as="order">
+                                    <td t-out="order.name"/>
+                                    <td><span t-field="order.date_order" t-options="{'widget': 'date'}"/></td>
+                                    <td t-out="order.portal_project_name or '-'"/>
+                                    <td t-out="order.portal_requested_by_id.name or '-'"/>
+                                    <td t-out="order.portal_authorized_by_id.name or '-'"/>
+                                    <td>
+                                        <span t-if="order.portal_all_payment_proof_ids.filtered(lambda proof: proof.state != 'rejected')">
+                                            Sí
+                                        </span>
+                                        <span t-else="">No</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span t-field="order.amount_total"
+                                              t-options="{'widget': 'monetary', 'display_currency': order.currency_id}"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="6" class="text-end">Total seleccionado</th>
+                                    <th class="text-end">
+                                        <span t-out="sum(docs.mapped('amount_total'))"
+                                              t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                    </th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>
