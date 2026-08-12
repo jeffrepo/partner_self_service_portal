@@ -94,3 +94,13 @@ class AccountMove(models.Model):
             self._PORTAL_FEL_NUMBER_FIELDS,
             ("numero", "number", "folio"),
         )
+
+    def _is_portal_batch_payment_eligible(self):
+        """Keep older cached invoice portal views safe during module upgrades.
+
+        Batch payment now belongs to sales orders.  An existing database can still
+        have the former invoice QWeb inheritance active until the addon is upgraded,
+        so the compatibility hook must remain available and reject every invoice.
+        """
+        self.ensure_one()
+        return False

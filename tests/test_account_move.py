@@ -3,6 +3,11 @@ from odoo.tests import TransactionCase, tagged
 
 @tagged("post_install", "-at_install")
 class TestAccountMoveFelPortalLink(TransactionCase):
+    def test_invoice_is_never_eligible_for_legacy_batch_payment(self):
+        invoice = self.env["account.move"].new()
+
+        self.assertFalse(invoice._is_portal_batch_payment_eligible())
+
     def test_empty_certificate_has_no_download_url(self):
         invoice = self.env["account.move"].new()
 
