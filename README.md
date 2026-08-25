@@ -29,6 +29,7 @@
   - solicita la clave personal del contacto que inició sesión;
   - permite escribir una nota de autorización que solo se registra en la orden de
     venta cuando la clave es correcta y la confirmación finaliza correctamente;
+  - conserva esa nota en la solicitud y la incluye en su reporte PDF;
   - vuelve a validar el inventario;
   - crea una orden de venta para la compañía cliente;
   - asigna el almacén de la compañía cliente;

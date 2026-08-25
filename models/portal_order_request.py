@@ -81,6 +81,12 @@ class PortalOrderRequest(models.Model):
         tracking=True,
     )
     note = fields.Text(string="Notas", tracking=True)
+    confirmation_note = fields.Text(
+        string="Notas de autorización",
+        readonly=True,
+        copy=False,
+        tracking=True,
+    )
     state = fields.Selection(
         selection=[
             ("draft", "Borrador"),
@@ -314,6 +320,9 @@ class PortalOrderRequest(models.Model):
             ).exists()
             if not authorized_by:
                 authorized_by = self.env.user.partner_id
+            confirmation_note = str(
+                self.env.context.get("portal_confirmation_note") or ""
+            ).strip()[:2000]
 
             salesperson = request_record.partner_id.user_id
             if (
@@ -335,10 +344,7 @@ class PortalOrderRequest(models.Model):
                         "origin": request_record.name,
                         "client_order_ref": request_record.customer_reference
                         or request_record.name,
-                        "note": (
-                            self.env.context.get("portal_confirmation_note")
-                            or False
-                        ),
+                        "note": confirmation_note or False,
                         "portal_order_request_id": request_record.id,
                     }
                 )
@@ -366,6 +372,7 @@ class PortalOrderRequest(models.Model):
                     "state": "confirmed",
                     "confirmed_at": fields.Datetime.now(),
                     "authorized_by_id": authorized_by.id,
+                    "confirmation_note": confirmation_note or False,
                     "sale_order_id": sale_order.id,
                 }
             )

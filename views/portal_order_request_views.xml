@@ -96,6 +96,9 @@
                         </page>
                         <page string="Notas" name="notes">
                             <field name="note" placeholder="Notas de la solicitud..." readonly="state != 'draft'"/>
+                            <field name="confirmation_note"
+                                   placeholder="La nota ingresada al autorizar aparecerá aquí."
+                                   readonly="1"/>
                         </page>
                     </notebook>
                 </sheet>

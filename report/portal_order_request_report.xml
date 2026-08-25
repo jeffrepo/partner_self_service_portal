@@ -104,6 +104,14 @@
                             <strong>Notas</strong>
                             <p t-out="doc.note"/>
                         </div>
+                        <div t-if="doc.confirmation_note or (doc.sale_order_id and doc.sale_order_id.note)"
+                             class="mt-4">
+                            <strong>Notas de autorización</strong>
+                            <p t-if="doc.confirmation_note"
+                               style="white-space: pre-wrap;"
+                               t-out="doc.confirmation_note"/>
+                            <div t-else="" t-field="doc.sale_order_id.note"/>
+                        </div>
                     </div>
                 </t>
             </t>

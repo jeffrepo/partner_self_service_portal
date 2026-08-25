@@ -21,6 +21,10 @@ class TestPortalOrderRequest(PartnerSelfServicePortalCommon):
         self.assertEqual(request_record.sale_order_id.state, "sale")
         self.assertEqual(request_record.sale_order_id.partner_id, self.customer_company)
         self.assertEqual(request_record.sale_order_id.warehouse_id, self.warehouse)
+        self.assertEqual(
+            request_record.confirmation_note,
+            "Compra autorizada para el proyecto Norte",
+        )
         self.assertIn(
             "Compra autorizada para el proyecto Norte",
             request_record.sale_order_id.note,
