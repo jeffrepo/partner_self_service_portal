@@ -11,7 +11,8 @@ class TestPortalOrderRequest(PartnerSelfServicePortalCommon):
         request_record = self._create_request(quantity=2.0)
 
         request_record.with_context(
-            portal_authorized_by_partner_id=self.customer_contact.id
+            portal_authorized_by_partner_id=self.customer_contact.id,
+            portal_confirmation_note="Compra autorizada para el proyecto Norte",
         ).action_confirm()
 
         self.assertEqual(request_record.state, "confirmed")
@@ -20,6 +21,10 @@ class TestPortalOrderRequest(PartnerSelfServicePortalCommon):
         self.assertEqual(request_record.sale_order_id.state, "sale")
         self.assertEqual(request_record.sale_order_id.partner_id, self.customer_company)
         self.assertEqual(request_record.sale_order_id.warehouse_id, self.warehouse)
+        self.assertIn(
+            "Compra autorizada para el proyecto Norte",
+            request_record.sale_order_id.note,
+        )
         self.assertEqual(
             request_record.sale_order_id.portal_order_request_id,
             request_record,
@@ -57,6 +62,24 @@ class TestPortalOrderRequest(PartnerSelfServicePortalCommon):
             self.product.ids
         )
         self.assertEqual(available[self.product.id], 8.0)
+
+    def test_pending_quantity_uses_original_requested_quantity(self):
+        request_record = self._create_request(quantity=10.0)
+        line = request_record.line_ids
+
+        self.assertEqual(line.initial_requested_qty, 10.0)
+        self.assertEqual(line.pending_qty, 0.0)
+
+        line.product_uom_qty = 7.0
+
+        self.assertEqual(line.initial_requested_qty, 10.0)
+        self.assertEqual(line.pending_qty, 3.0)
+
+        line.product_uom_qty = 8.0
+        self.assertEqual(line.pending_qty, 2.0)
+
+        line.product_uom_qty = 11.0
+        self.assertEqual(line.pending_qty, 0.0)
 
     def test_confirmation_rejects_insufficient_inventory(self):
         request_record = self._create_request(quantity=11.0)

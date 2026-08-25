@@ -73,6 +73,7 @@
                                     <th>Código</th>
                                     <th>Producto</th>
                                     <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Pendiente</th>
                                     <th>Unidad</th>
                                 </tr>
                             </thead>
@@ -81,6 +82,7 @@
                                     <td t-out="line.product_id.default_code or '-'"/>
                                     <td t-out="line.product_id.display_name"/>
                                     <td class="text-end" t-out="line.product_uom_qty"/>
+                                    <td class="text-end" t-out="line.pending_qty"/>
                                     <td t-out="line.product_uom_id.name"/>
                                 </tr>
                             </tbody>
@@ -92,6 +94,7 @@
                                     <td class="text-end">
                                         <strong t-out="doc.total_requested_qty"/>
                                     </td>
+                                    <td/>
                                     <td/>
                                 </tr>
                             </tfoot>

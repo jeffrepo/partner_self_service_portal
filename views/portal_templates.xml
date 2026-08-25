@@ -651,6 +651,7 @@
                         <th>Código</th>
                         <th>Producto</th>
                         <th class="text-end">Cantidad</th>
+                        <th class="text-end">Pendiente</th>
                         <th>Unidad</th>
                     </tr>
                 </thead>
@@ -659,6 +660,7 @@
                         <td><span t-out="line.product_id.default_code or '-'"/></td>
                         <td><span t-out="line.product_id.display_name"/></td>
                         <td class="text-end"><span t-out="line.product_uom_qty"/></td>
+                        <td class="text-end"><span t-out="line.pending_qty"/></td>
                         <td><span t-out="line.product_uom_id.name"/></td>
                     </tr>
                 </tbody>
@@ -706,6 +708,21 @@
                                        autocomplete="current-password"
                                        required="required"
                                        class="form-control"/>
+                                <div class="mt-3">
+                                    <label for="portal_confirmation_note" class="form-label">
+                                        Notas
+                                    </label>
+                                    <textarea id="portal_confirmation_note"
+                                              name="confirmation_note"
+                                              maxlength="2000"
+                                              rows="3"
+                                              class="form-control"
+                                              placeholder="Agrega una nota para la orden de venta..."/>
+                                    <div class="form-text">
+                                        La nota se guardará únicamente si la clave es correcta
+                                        y la solicitud logra confirmarse.
+                                    </div>
+                                </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button"

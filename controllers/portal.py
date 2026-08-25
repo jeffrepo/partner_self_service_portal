@@ -432,8 +432,14 @@ class PartnerSelfServicePortal(CustomerPortal):
             raise ValueError("Non-finite quantity")
         return parsed_value
 
-    def _prepare_request_lines(self, warehouse, post):
+    def _prepare_request_lines(self, warehouse, post, request_record=None):
         available_by_product = warehouse.sudo()._get_portal_available_quantities()
+        original_quantity_by_product = {
+            line.product_id.id: (
+                line.initial_requested_qty or line.product_uom_qty
+            )
+            for line in request_record.line_ids
+        } if request_record else {}
         lines = []
         errors = []
         for field_name, raw_value in post.items():
@@ -472,6 +478,9 @@ class PartnerSelfServicePortal(CustomerPortal):
                     {
                         "product_id": product.id,
                         "product_uom_qty": quantity,
+                        "initial_requested_qty": original_quantity_by_product.get(
+                            product.id, quantity
+                        ),
                         "available_qty_at_request": available,
                     }
                 )
@@ -597,7 +606,9 @@ class PartnerSelfServicePortal(CustomerPortal):
 
         if request.httprequest.method == "POST":
             lines, errors = self._prepare_request_lines(
-                request_record.warehouse_id, post
+                request_record.warehouse_id,
+                post,
+                request_record=request_record,
             )
             if not errors:
                 with request.env.cr.savepoint():
@@ -667,7 +678,10 @@ class PartnerSelfServicePortal(CustomerPortal):
         try:
             with request.env.cr.savepoint():
                 request_record.with_context(
-                    portal_authorized_by_partner_id=request.env.user.partner_id.id
+                    portal_authorized_by_partner_id=request.env.user.partner_id.id,
+                    portal_confirmation_note=(
+                        post.get("confirmation_note", "").strip()[:2000]
+                    ),
                 ).action_confirm()
         except (UserError, ValidationError) as error:
             return self._render_purchase_request_confirmation_error(

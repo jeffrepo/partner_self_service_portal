@@ -335,6 +335,10 @@ class PortalOrderRequest(models.Model):
                         "origin": request_record.name,
                         "client_order_ref": request_record.customer_reference
                         or request_record.name,
+                        "note": (
+                            self.env.context.get("portal_confirmation_note")
+                            or False
+                        ),
                         "portal_order_request_id": request_record.id,
                     }
                 )
@@ -464,11 +468,55 @@ class PortalOrderRequestLine(models.Model):
         required=True,
         digits="Product Unit of Measure",
     )
+    initial_requested_qty = fields.Float(
+        string="Cantidad original",
+        digits="Product Unit of Measure",
+        readonly=True,
+        copy=True,
+    )
+    pending_qty = fields.Float(
+        string="Pendiente",
+        digits="Product Unit of Measure",
+        compute="_compute_pending_qty",
+    )
     available_qty_at_request = fields.Float(
         string="Disponible al guardar",
         digits="Product Unit of Measure",
         readonly=True,
     )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        normalized_vals_list = []
+        for values in vals_list:
+            values = dict(values)
+            if not values.get("initial_requested_qty"):
+                values["initial_requested_qty"] = values.get(
+                    "product_uom_qty", 0.0
+                )
+            normalized_vals_list.append(values)
+        return super().create(normalized_vals_list)
+
+    def write(self, values):
+        if "product_uom_qty" in values:
+            for legacy_line in self.filtered(
+                lambda line: not line.initial_requested_qty
+            ):
+                super(PortalOrderRequestLine, legacy_line).write(
+                    {"initial_requested_qty": legacy_line.product_uom_qty}
+                )
+        return super().write(values)
+
+    @api.depends("initial_requested_qty", "product_uom_qty")
+    def _compute_pending_qty(self):
+        for line in self:
+            original_quantity = (
+                line.initial_requested_qty or line.product_uom_qty
+            )
+            line.pending_qty = max(
+                original_quantity - line.product_uom_qty,
+                0.0,
+            )
 
     @api.constrains("product_id", "product_uom_qty")
     def _check_product_and_quantity(self):

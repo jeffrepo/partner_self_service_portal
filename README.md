@@ -22,9 +22,13 @@
 - Muestra en tiempo real el inventario libre del almacén asignado: existencia física menos cantidades reservadas.
 - Permite crear y editar solicitudes de compra con correlativo `SPR/AÑO/#####`.
 - Usa el campo **Proyecto** en la solicitud y permite descargarla en PDF.
+- Conserva la cantidad original de cada línea y muestra **Pendiente** como la
+  diferencia positiva entre la cantidad original y la cantidad actual.
 - Solo permite solicitar productos almacenables, vendibles y con inventario libre.
 - Al confirmar una solicitud:
   - solicita la clave personal del contacto que inició sesión;
+  - permite escribir una nota de autorización que solo se registra en la orden de
+    venta cuando la clave es correcta y la confirmación finaliza correctamente;
   - vuelve a validar el inventario;
   - crea una orden de venta para la compañía cliente;
   - asigna el almacén de la compañía cliente;
