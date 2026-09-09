@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="portal_order_request_rule_portal" model="ir.rule">
+        <field name="name">Solicitudes del portal: compañía del usuario</field>
+        <field name="model_id" ref="model_partner_portal_order_request"/>
+        <field name="domain_force">[('partner_id', '=', user.partner_id.commercial_partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="portal_order_request_line_rule_portal" model="ir.rule">
+        <field name="name">Líneas del portal: compañía del usuario</field>
+        <field name="model_id" ref="model_partner_portal_order_request_line"/>
+        <field name="domain_force">[('partner_id', '=', user.partner_id.commercial_partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="portal_payment_proof_rule_portal" model="ir.rule">
+        <field name="name">Comprobantes del portal: compañía del usuario</field>
+        <field name="model_id" ref="model_partner_portal_payment_proof"/>
+        <field name="domain_force">[('partner_id', '=', user.partner_id.commercial_partner_id.id)] if not (user.share and user.partner_id.portal_user_type == 'project') else [('id', '=', 0)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="sale_order_rule_project_portal" model="ir.rule">
+        <field name="name">Órdenes de venta: ocultas para usuarios de proyecto</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="domain_force">[('id', '=', 0)] if user.share and user.partner_id.portal_user_type == 'project' else []</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="sale_order_line_rule_project_portal" model="ir.rule">
+        <field name="name">Líneas de venta: ocultas para usuarios de proyecto</field>
+        <field name="model_id" ref="sale.model_sale_order_line"/>
+        <field name="domain_force">[('id', '=', 0)] if user.share and user.partner_id.portal_user_type == 'project' else []</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="account_move_rule_project_portal" model="ir.rule">
+        <field name="name">Facturas: ocultas para usuarios de proyecto</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="domain_force">[('id', '=', 0)] if user.share and user.partner_id.portal_user_type == 'project' else []</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="account_move_line_rule_project_portal" model="ir.rule">
+        <field name="name">Líneas de factura: ocultas para usuarios de proyecto</field>
+        <field name="model_id" ref="account.model_account_move_line"/>
+        <field name="domain_force">[('id', '=', 0)] if user.share and user.partner_id.portal_user_type == 'project' else []</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="portal_order_request_rule_internal_company" model="ir.rule">
+        <field name="name">Solicitudes del portal: compañías permitidas</field>
+        <field name="model_id" ref="model_partner_portal_order_request"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <record id="portal_order_request_line_rule_internal_company" model="ir.rule">
+        <field name="name">Líneas del portal: compañías permitidas</field>
+        <field name="model_id" ref="model_partner_portal_order_request_line"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <record id="portal_payment_proof_rule_internal_company" model="ir.rule">
+        <field name="name">Comprobantes del portal: compañías permitidas</field>
+        <field name="model_id" ref="model_partner_portal_payment_proof"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+</odoo>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_partner_self_service_portal" model="ir.ui.view">
+        <field name="name">sale.order.form.partner.self.service.portal</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='client_order_ref']" position="after">
+                <field name="portal_order_request_id" invisible="not portal_order_request_id"/>
+                <field name="portal_project_name" invisible="not portal_order_request_id"/>
+                <field name="portal_requested_by_id" invisible="not portal_order_request_id"/>
+                <field name="portal_authorized_by_id" invisible="not portal_order_request_id"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Comprobantes del portal"
+                      name="portal_payment_proofs"
+                      invisible="not portal_all_payment_proof_ids">
+                    <field name="portal_all_payment_proof_ids" readonly="1">
+                        <list>
+                            <field name="name"/>
+                            <field name="create_date"/>
+                            <field name="uploaded_by_id"/>
+                            <field name="payment_date"/>
+                            <field name="amount"/>
+                            <field name="currency_id" column_invisible="True"/>
+                            <field name="state" widget="badge"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_order_list_partner_self_service_portal" model="ir.ui.view">
+        <field name="name">sale.order.list.partner.self.service.portal</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="portal_project_name" string="Proyecto" optional="show"/>
+                <field name="portal_requested_by_name" string="Solicitado por" optional="show"/>
+                <field name="portal_authorized_by_name" string="Autorizado por" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

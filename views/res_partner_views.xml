@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_portal_warehouse" model="ir.ui.view">
+        <field name="name">res.partner.form.portal.warehouse</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='category_id']" position="after">
+                <field name="portal_warehouse_id"
+                       invisible="not is_company"
+                       options="{'no_create': True}"
+                       groups="stock.group_stock_manager"/>
+                <field name="portal_user_type"
+                       invisible="is_company"
+                       groups="base.group_user"/>
+                <field name="portal_confirmation_key_configured"
+                       invisible="is_company or portal_user_type != 'office'"
+                       readonly="1"
+                       groups="base.group_user"/>
+                <button name="action_open_portal_confirmation_key_wizard"
+                        type="object"
+                        string="Configurar clave del portal"
+                        class="btn-link"
+                        icon="fa-key"
+                        invisible="is_company or portal_user_type != 'office'"
+                        groups="base.group_user"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

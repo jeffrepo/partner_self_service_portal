@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="portal_order_request_view_search" model="ir.ui.view">
+        <field name="name">partner.portal.order.request.search</field>
+        <field name="model">partner.portal.order.request</field>
+        <field name="arch" type="xml">
+            <search string="Solicitudes del portal">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="requested_by_id"/>
+                <field name="authorized_by_id"/>
+                <field name="sale_order_id"/>
+                <filter name="draft" string="Borradores" domain="[('state', '=', 'draft')]"/>
+                <filter name="confirmed" string="Confirmadas" domain="[('state', '=', 'confirmed')]"/>
+                <separator/>
+                <filter name="group_partner" string="Compañía cliente" context="{'group_by': 'partner_id'}"/>
+                <filter name="group_warehouse" string="Almacén" context="{'group_by': 'warehouse_id'}"/>
+                <filter name="group_state" string="Estado" context="{'group_by': 'state'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="portal_order_request_view_list" model="ir.ui.view">
+        <field name="name">partner.portal.order.request.list</field>
+        <field name="model">partner.portal.order.request</field>
+        <field name="arch" type="xml">
+            <list string="Solicitudes del portal" decoration-success="state == 'confirmed'">
+                <field name="name" decoration-bf="1"/>
+                <field name="create_date"/>
+                <field name="partner_id"/>
+                <field name="requested_by_name" optional="show"/>
+                <field name="customer_reference" optional="show"/>
+                <field name="authorized_by_name" optional="show"/>
+                <field name="warehouse_id"/>
+                <field name="total_requested_qty" sum="Cantidad total"/>
+                <field name="sale_order_id" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-success="state == 'confirmed'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="portal_order_request_view_form" model="ir.ui.view">
+        <field name="name">partner.portal.order.request.form</field>
+        <field name="model">partner.portal.order.request</field>
+        <field name="arch" type="xml">
+            <form string="Solicitud del portal">
+                <header>
+                    <button name="action_confirm" type="object" string="Confirmar"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button type="object" name="action_open_sale_order"
+                                class="oe_stat_button" icon="fa-shopping-cart"
+                                invisible="not sale_order_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Orden de venta</span>
+                                <span class="o_stat_value"><field name="sale_order_id" nolabel="1"/></span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="requested_by_id"/>
+                            <field name="authorized_by_id" invisible="not authorized_by_id"/>
+                            <field name="warehouse_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="customer_reference" readonly="state != 'draft'"/>
+                            <field name="create_date"/>
+                            <field name="confirmed_at" invisible="not confirmed_at"/>
+                            <field name="sale_order_id" invisible="not sale_order_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Productos" name="products">
+                            <field name="line_ids" readonly="state != 'draft'">
+                                <list editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="product_uom_qty"/>
+                                    <field name="pending_qty" readonly="1"/>
+                                    <field name="initial_requested_qty" optional="hide"/>
+                                    <field name="product_uom_id"/>
+                                    <field name="available_qty_at_request"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notas" name="notes">
+                            <field name="note" placeholder="Notas de la solicitud..." readonly="state != 'draft'"/>
+                            <field name="confirmation_note"
+                                   placeholder="La nota ingresada al autorizar aparecerá aquí."
+                                   readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="portal_order_request_action" model="ir.actions.act_window">
+        <field name="name">Solicitudes del portal</field>
+        <field name="res_model">partner.portal.order.request</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="portal_order_request_view_search"/>
+        <field name="context">{'search_default_draft': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay solicitudes del portal.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_portal_order_request"
+              name="Solicitudes del portal"
+              parent="sale.sale_order_menu"
+              action="portal_order_request_action"
+              sequence="30"
+              groups="sales_team.group_sale_salesman"/>
+</odoo>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="portal_confirmation_key_wizard_view_form" model="ir.ui.view">
+        <field name="name">partner.portal.confirmation.key.wizard.form</field>
+        <field name="model">partner.portal.confirmation.key.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Configurar clave de confirmación">
+                <group>
+                    <field name="partner_id"/>
+                    <field name="confirmation_key" password="True"/>
+                    <field name="confirmation_key_repeat" password="True"/>
+                </group>
+                <p class="text-muted">
+                    La clave debe tener al menos 6 caracteres. Odoo guardará solamente
+                    una versión cifrada y no podrá mostrarla posteriormente.
+                </p>
+                <footer>
+                    <button name="action_set_confirmation_key"
+                            type="object"
+                            string="Guardar clave"
+                            class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

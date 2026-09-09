@@ -1,0 +1,9 @@
+.o_portal_request_products {
+    tbody tr:focus-within {
+        background-color: rgba(var(--o-color-1-rgb, 113, 75, 103), 0.04);
+    }
+
+    input[type="number"] {
+        min-width: 8rem;
+    }
+}
