@@ -39,9 +39,13 @@
   - notifica por correo y actividad a los usuarios internos configurados.
 - Muestra Proyecto, Solicitado por y Autorizado por en las órdenes de venta creadas
   por una solicitud del portal.
+- Muestra el estado de pago de cada orden como **Sin factura**, **Pendiente** o
+  **Pagada**, según el saldo de todas sus facturas de cliente.
 - Añade el botón **Pagar** en las órdenes confirmadas del portal.
 - En la lista de órdenes permite seleccionar varias ventas y enviar un único
   comprobante para todas ellas, antes de facturar.
+- Impide seleccionar o volver a enviar un comprobante para una orden cuyas
+  facturas ya estén totalmente pagadas.
 - Permite imprimir un estado de cuenta PDF que contiene únicamente las órdenes
   seleccionadas.
 - El botón acepta JPG, PNG, WEBP o PDF de hasta 10 MB y registra un comprobante separado.
@@ -144,6 +148,7 @@ El addon incluye pruebas de modelo para:
 - registro de comprobantes sin crear pagos contables;
 - protección, hash y bloqueo temporal de la clave de confirmación;
 - comprobantes asociados a varias órdenes de venta;
+- cálculo del estado pagado y bloqueo de comprobantes duplicados;
 - visibilidad restringida de ventas y facturas para usuarios Proyecto.
 
 Para ejecutarlas en una instalación de Odoo 18:

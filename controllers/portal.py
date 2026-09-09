@@ -788,6 +788,10 @@ class PartnerSelfServicePortal(CustomerPortal):
         sale_order = self._get_portal_sale_order(order_id, company_partner)
         if not sale_order:
             return request.redirect("/my/orders")
+        if not sale_order._is_portal_payment_proof_eligible():
+            return request.redirect(
+                f"{sale_order.get_portal_url()}?proof_error=paid"
+            )
 
         upload_values, error_code = self._prepare_payment_proof_upload(post)
         if error_code:
@@ -803,7 +807,7 @@ class PartnerSelfServicePortal(CustomerPortal):
             f"{sale_order.get_portal_url()}?proof_submitted=1"
         )
 
-    def _get_selected_portal_sale_orders(self):
+    def _get_selected_portal_sale_orders(self, require_payment_eligible=False):
         company_partner = self._get_customer_company_partner()
         if not company_partner:
             return request.env["sale.order"], "access"
@@ -828,6 +832,11 @@ class PartnerSelfServicePortal(CustomerPortal):
         )
         if len(sale_orders) != len(order_ids):
             return request.env["sale.order"], "selection"
+        if require_payment_eligible and any(
+            not order._is_portal_payment_proof_eligible()
+            for order in sale_orders
+        ):
+            return request.env["sale.order"], "paid"
         if len(sale_orders.company_id) != 1 or len(sale_orders.currency_id) != 1:
             return request.env["sale.order"], "currency"
         return sale_orders, False
@@ -842,7 +851,9 @@ class PartnerSelfServicePortal(CustomerPortal):
     def portal_order_batch_payment_proof(self, **post):
         if _is_project_portal_user():
             return request.redirect("/my/purchase-requests")
-        sale_orders, selection_error = self._get_selected_portal_sale_orders()
+        sale_orders, selection_error = self._get_selected_portal_sale_orders(
+            require_payment_eligible=True
+        )
         if selection_error:
             return request.redirect(
                 f"/my/orders?batch_proof_error={selection_error}"

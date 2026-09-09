@@ -59,6 +59,15 @@ class SaleOrder(models.Model):
         string="Todos los comprobantes del portal",
         compute="_compute_portal_all_payment_proof_ids",
     )
+    portal_invoice_payment_state = fields.Selection(
+        selection=[
+            ("not_invoiced", "Sin factura"),
+            ("pending", "Pendiente"),
+            ("paid", "Pagada"),
+        ],
+        string="Estado de pago",
+        compute="_compute_portal_invoice_payment_state",
+    )
 
     @api.depends("portal_payment_proof_ids", "portal_batch_payment_proof_ids")
     def _compute_portal_all_payment_proof_ids(self):
@@ -67,3 +76,34 @@ class SaleOrder(models.Model):
                 order.portal_payment_proof_ids
                 | order.portal_batch_payment_proof_ids
             )
+
+    @api.depends(
+        "invoice_ids.move_type",
+        "invoice_ids.state",
+        "invoice_ids.amount_residual",
+        "invoice_ids.currency_id",
+    )
+    def _compute_portal_invoice_payment_state(self):
+        for order in self:
+            customer_invoices = order.invoice_ids.filtered(
+                lambda invoice: (
+                    invoice.move_type == "out_invoice"
+                    and invoice.state != "cancel"
+                )
+            )
+            if not customer_invoices:
+                order.portal_invoice_payment_state = "not_invoiced"
+            elif all(
+                invoice.currency_id.is_zero(invoice.amount_residual)
+                for invoice in customer_invoices
+            ):
+                order.portal_invoice_payment_state = "paid"
+            else:
+                order.portal_invoice_payment_state = "pending"
+
+    def _is_portal_payment_proof_eligible(self):
+        self.ensure_one()
+        return (
+            self.state == "sale"
+            and self.portal_invoice_payment_state != "paid"
+        )

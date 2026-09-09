@@ -1,5 +1,6 @@
 import base64
 
+from odoo import fields
 from odoo.tests import tagged
 from odoo.tests.common import new_test_user
 
@@ -8,6 +9,57 @@ from .common import PartnerSelfServicePortalCommon
 
 @tagged("post_install", "-at_install")
 class TestPortalPaymentProof(PartnerSelfServicePortalCommon):
+    def test_paid_sale_order_is_not_eligible_for_another_proof(self):
+        request_record = self._create_request()
+        request_record.action_confirm()
+        sale_order = request_record.sale_order_id
+
+        self.assertEqual(
+            sale_order.portal_invoice_payment_state,
+            "not_invoiced",
+        )
+        self.assertTrue(sale_order._is_portal_payment_proof_eligible())
+
+        invoice = sale_order._create_invoices()
+        invoice.action_post()
+        self.assertEqual(sale_order.portal_invoice_payment_state, "pending")
+        self.assertTrue(sale_order._is_portal_payment_proof_eligible())
+
+        journal = self.env["account.journal"].search(
+            [
+                ("company_id", "=", self.env.company.id),
+                ("type", "in", ("bank", "cash")),
+            ],
+            limit=1,
+        )
+        self.assertTrue(journal)
+        payment_method_line = journal.inbound_payment_method_line_ids[:1]
+        self.assertTrue(payment_method_line)
+        payment = self.env["account.payment"].create(
+            {
+                "payment_type": "inbound",
+                "partner_type": "customer",
+                "partner_id": self.customer_company.id,
+                "amount": invoice.amount_residual,
+                "currency_id": invoice.currency_id.id,
+                "date": fields.Date.today(),
+                "journal_id": journal.id,
+                "payment_method_line_id": payment_method_line.id,
+            }
+        )
+        payment.action_post()
+        receivable_lines = (invoice.line_ids | payment.move_id.line_ids).filtered(
+            lambda line: (
+                line.account_id.account_type == "asset_receivable"
+                and not line.reconciled
+            )
+        )
+        receivable_lines.reconcile()
+
+        self.assertTrue(invoice.currency_id.is_zero(invoice.amount_residual))
+        self.assertEqual(sale_order.portal_invoice_payment_state, "paid")
+        self.assertFalse(sale_order._is_portal_payment_proof_eligible())
+
     def test_proof_does_not_create_account_payment(self):
         recipient = new_test_user(
             self.env,
