@@ -27,4 +27,33 @@
             </xpath>
         </field>
     </record>
+
+    <record id="res_config_settings_view_form_portal_payment_contacts" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.portal.payment.contacts</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='quotation_order_setting_container']"
+                   position="inside">
+                <setting id="partner_self_service_portal_payment_contacts"
+                         string="Correos de comprobantes del portal"
+                         company_dependent="1"
+                         help="Envía a contactos externos una copia del comprobante de pago recibido desde el portal.">
+                    <div class="content-group">
+                        <label for="portal_payment_notification_partner_ids"
+                               string="Contactos que recibirán los correos"/>
+                        <div class="mt8">
+                            <field name="portal_payment_notification_partner_ids"
+                                   widget="many2many_tags"
+                                   options="{'no_create': True, 'no_open': True}"
+                                   domain="[('active', '=', True), ('email', '!=', False), ('type', '=', 'contact'), ('user_ids', '=', False)]"/>
+                        </div>
+                        <div class="text-muted">
+                            Solo se muestran contactos con correo que no tienen un usuario de Odoo.
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
 </odoo>

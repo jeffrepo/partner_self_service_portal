@@ -220,9 +220,24 @@ class PortalPaymentProof(models.Model):
 
     def notify_internal_users(self):
         self.ensure_one()
-        recipients = self.company_id.portal_notification_user_ids.filtered(
+        internal_users = self.company_id.portal_notification_user_ids.filtered(
             lambda user: user.active and not user.share
         )
+        configured_external_partners = (
+            self.company_id.portal_payment_notification_partner_ids.filtered(
+                lambda partner: partner.active and partner.email
+            )
+        )
+        partners_with_users = (
+            self.env["res.users"]
+            .sudo()
+            .with_context(active_test=False)
+            .search(
+                [("partner_id", "in", configured_external_partners.ids)]
+            )
+            .partner_id
+        )
+        external_partners = configured_external_partners - partners_with_users
         sale_orders = self.sale_order_ids | self.sale_order_id
         sale_order_names = ", ".join(sale_orders.mapped("name"))
         invoice_names = ", ".join(self.invoice_ids.mapped("name"))
@@ -258,8 +273,11 @@ class PortalPaymentProof(models.Model):
                 message_type="comment",
                 subtype_xmlid="mail.mt_note",
             )
-        email_recipients = recipients.filtered("partner_id.email")
-        if email_recipients:
+        email_recipient_partners = (
+            internal_users.filtered("partner_id.email").partner_id
+            | external_partners
+        )
+        if email_recipient_partners:
             outgoing_mail = self.env["mail.mail"].sudo().create(
                 {
                     "subject": _(
@@ -271,7 +289,7 @@ class PortalPaymentProof(models.Model):
                     "email_from": self.company_id.partner_id.email_formatted
                     or self.env.user.email_formatted,
                     "recipient_ids": [
-                        Command.set(email_recipients.partner_id.ids)
+                        Command.set(email_recipient_partners.ids)
                     ],
                     "author_id": self.uploaded_by_id.id,
                     "model": self.sale_order_id._name,
@@ -287,7 +305,7 @@ class PortalPaymentProof(models.Model):
             outgoing_mail.write(
                 {"attachment_ids": [Command.link(email_attachment.id)]}
             )
-        for user in recipients:
+        for user in internal_users:
             for sale_order in sale_orders:
                 sale_order.activity_schedule(
                     "mail.mail_activity_data_todo",

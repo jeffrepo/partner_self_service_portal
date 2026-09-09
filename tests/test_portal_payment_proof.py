@@ -1,6 +1,7 @@
 import base64
 
 from odoo import fields
+from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 from odoo.tests.common import new_test_user
 
@@ -68,6 +69,15 @@ class TestPortalPaymentProof(PartnerSelfServicePortalCommon):
             company_id=self.env.company.id,
         )
         self.env.company.portal_notification_user_ids = recipient
+        external_recipient = self.env["res.partner"].create(
+            {
+                "name": "External Payment Recipient",
+                "email": "external.payment@example.com",
+            }
+        )
+        self.env.company.portal_payment_notification_partner_ids = (
+            external_recipient
+        )
         request_record = self._create_request()
         request_record.action_confirm()
         payment_count_before = self.env["account.payment"].search_count([])
@@ -105,6 +115,9 @@ class TestPortalPaymentProof(PartnerSelfServicePortalCommon):
             limit=1,
         )
         self.assertTrue(queued_email)
+        self.assertIn(recipient.partner_id, queued_email.recipient_ids)
+        self.assertIn(external_recipient, queued_email.recipient_ids)
+        self.assertIn(request_record.sale_order_id.name, queued_email.body_html)
         self.assertEqual(len(queued_email.attachment_ids), 1)
         email_attachment = queued_email.attachment_ids
         self.assertNotEqual(email_attachment, attachment)
@@ -125,6 +138,12 @@ class TestPortalPaymentProof(PartnerSelfServicePortalCommon):
             lambda message: attachment in message.attachment_ids
         )
         self.assertTrue(chatter_message)
+
+    def test_external_payment_recipient_cannot_have_an_odoo_user(self):
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            self.env.company.portal_payment_notification_partner_ids = (
+                self.customer_contact
+            )
 
     def test_one_proof_can_cover_multiple_invoices_and_orders(self):
         first_request = self._create_request(quantity=2.0)

@@ -50,7 +50,8 @@
   seleccionadas.
 - El botón acepta JPG, PNG, WEBP o PDF de hasta 10 MB y registra un comprobante separado.
 - El comprobante **no crea un `account.payment`**. Se adjunta al chatter de la orden y
-  también al correo enviado a los usuarios internos configurados.
+  también al correo enviado a los usuarios internos y contactos externos
+  configurados.
 
 ## Instalación
 
@@ -82,7 +83,18 @@ La configuración es independiente por compañía de Odoo.
 Odoo debe tener un servidor de correo saliente operativo; los mensajes se crean en la cola
 de correo estándar para conservar la trazabilidad y los reintentos normales del sistema.
 
-### 3. Usuario del portal
+### 3. Contactos externos para comprobantes de pago
+
+1. Ve a **Ventas → Configuración → Ajustes**.
+2. En **Cotizaciones y pedidos**, localiza **Correos de comprobantes del portal**.
+3. Selecciona uno o varios contactos externos.
+
+El selector solo permite contactos activos que tengan correo electrónico y que no
+estén vinculados a ningún usuario de Odoo. Estos contactos reciben el detalle de las
+órdenes de venta cubiertas y una copia del archivo adjunto, pero no se les crean
+actividades internas.
+
+### 4. Usuario del portal
 
 1. Abre el contacto hijo de la compañía cliente.
 2. Concédele acceso al portal mediante la función estándar de Odoo.
@@ -97,7 +109,7 @@ La clave pertenece al contacto, no a la compañía. Se almacena como un hash PBK
 no puede recuperarse ni mostrarse; si se olvida, un usuario interno debe reemplazarla.
 Después de cinco intentos incorrectos queda bloqueada durante 15 minutos.
 
-### 4. Serie y número FEL
+### 5. Serie y número FEL
 
 La lista detecta los campos FEL de `infilefel` por sus nombres técnicos habituales y
 por su descripción. Si una instalación personalizada usa nombres diferentes, se pueden
@@ -149,6 +161,7 @@ El addon incluye pruebas de modelo para:
 - protección, hash y bloqueo temporal de la clave de confirmación;
 - comprobantes asociados a varias órdenes de venta;
 - cálculo del estado pagado y bloqueo de comprobantes duplicados;
+- notificación con adjunto a contactos externos sin usuario de Odoo;
 - visibilidad restringida de ventas y facturas para usuarios Proyecto.
 
 Para ejecutarlas en una instalación de Odoo 18:
